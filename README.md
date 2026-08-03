@@ -171,9 +171,10 @@ pkg self-update                   # update NeoOS's own tools/scripts
 ```
 
 `pkg self-update` pulls the NeoOS tool scripts from a git checkout
-(`NEOS_REPO`, default `/opt/neos`) and re-applies the overlay; it clones
-from `NEOS_GH` on first use. A plan-first updater is also available:
-`neos-update` shows what would change and applies with `neos-update --apply`.
+(`NEOS_REPO`, default `/opt/neos`) and re-applies the overlay; on first
+use it can clone from a URL you provide via `NEOS_GH`. A plan-first
+updater is also available: `neos-update` shows what would change and
+applies with `neos-update --apply`.
 
 ## Distro installer (`neos-distro`)
 

@@ -17,7 +17,7 @@
 #   pkg check               dpkg --audit (broken packages)
 #   pkg autoremove          remove no-longer-needed packages
 #   pkg clean               clean the apt cache
-#   pkg self-update         update NeoOS's own tools/scripts
+#   pkg self-update         update NeoOS's own tools/scripts (NEOS_REPO/NEOS_GH)
 #   pkg version             print pkg + OS version
 #
 # Exit codes follow apt conventions (0 ok, 100 on user cancel).
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 NEOS_REPO="${NEOS_REPO:-/opt/neos}"
-NEOS_GH="${NEOS_GH:-https://github.com/neodos/neos.git}"
+NEOS_GH="${NEOS_GH:-}"
 
 log() { printf '\033[1;36m[pkg]\033[0m %s\n' "$*"; }
 info(){ printf '\033[1;32m[pkg]\033[0m %s\n' "$*"; }
@@ -124,22 +124,22 @@ case "$cmd" in
     ;;
 
   self-update|selfupdate)
-    if [[ -d "$NEOS_REPO/.git" ]]; then
-      log "Updating NeoOS tools from $NEOS_REPO"
-      git -C "$NEOS_REPO" pull --ff-only
-      if [[ -f "$NEOS_REPO/scripts/apply-overlay.sh" ]]; then
-        run_root bash "$NEOS_REPO/scripts/apply-overlay.sh" /
+    if [[ ! -d "$NEOS_REPO/.git" ]]; then
+      if [[ -n "${NEOS_GH:-}" ]] && command -v git >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1; then
+        log "Cloning NeoOS tools repo to $NEOS_REPO"
+        sudo mkdir -p "$(dirname "$NEOS_REPO")"
+        sudo git clone "$NEOS_GH" "$NEOS_REPO"
+      else
+        err "Set NEOS_REPO=<path> (a git checkout of the NeoOS tools repo),"
+        err "or NEOS_GH=<git-url> to clone on first use, then retry 'pkg self-update'."
+        err "The tools repo must contain an 'overlay/' dir and 'scripts/apply-overlay.sh'."
+        exit 1
       fi
-    elif command -v git >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1; then
-      log "Cloning NeoOS tools to $NEOS_REPO"
-      sudo mkdir -p "$(dirname "$NEOS_REPO")"
-      sudo git clone "$NEOS_GH" "$NEOS_REPO"
-      if [[ -f "$NEOS_REPO/scripts/apply-overlay.sh" ]]; then
-        run_root bash "$NEOS_REPO/scripts/apply-overlay.sh" /
-      fi
-    else
-      err "No git repo at $NEOS_REPO and no network/git available."
-      exit 1
+    fi
+    log "Updating NeoOS tools from $NEOS_REPO"
+    git -C "$NEOS_REPO" pull --ff-only
+    if [[ -f "$NEOS_REPO/scripts/apply-overlay.sh" ]]; then
+      run_root bash "$NEOS_REPO/scripts/apply-overlay.sh" /
     fi
     info "NeoOS tools updated. Restart any open shells."
     ;;
