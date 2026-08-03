@@ -1,0 +1,14 @@
+wayland
+libwayland-dev
+wayland-protocols
+weston
+wlroots
+seatd
+xwayland
+wmenu
+foot
+xterm
+libgl1-mesa-dri
+libglx-mesa0
+mesa-utils
+libglib2.0-0

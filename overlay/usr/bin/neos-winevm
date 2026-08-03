@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# neos-winevm — create and manage isolated "Wine VMs": self-contained Wine
+# prefixes configured as a Windows 10 environment, each able to install and
+# run Windows applications without touching the base system.
+#
+# Usage:
+#   neos-winevm create <name>                 create a new Win10 Wine VM
+#   neos-winevm list                          list existing VMs
+#   neos-winevm run <name> -- <app.exe> [args]   run an app inside a VM
+#   neos-winevm install <name> <app.exe|setup.exe>
+#   neos-winevm config <name>                 open Winetricks for the VM
+#   neos-winevm apps <name>                   list installed .exe apps
+#   neos-winevm remove <name>                 delete a VM
+#   neos-winevm info <name>                   show VM details
+#
+# A VM is just a directory under ~/.winevm/<name>/ used as WINEPREFIX with
+# WINEARCH=win64 and the reported Windows version forced to win10.
+
+set -euo pipefail
+
+log() { printf '\033[1;36m[neos-winevm]\033[0m %s\n' "$*"; }
+err()  { printf '\033[1;31m[neos-winevm]\033[0m %s\n' "$*" >&2; }
+
+WINEVM_ROOT="${WINEVM_ROOT:-$HOME/.winevm}"
+WINE_VER="${WINEVM_WINVER:-win10}"
+
+usage() { sed -n '2,20p' "${BASH_SOURCE[0]}"; }
+
+ensure_wine() {
+  if ! command -v wine >/dev/null 2>&1 && ! command -v wine64 >/dev/null 2>&1; then
+    log "Installing Wine + Winetricks"
+    local pkgs="wine winetricks wine64 libwine"
+    if [[ -n "$(apt-cache policy wine32 2>/dev/null | awk '/Candidate:/{print $2}' | grep -v none)" ]]; then
+      pkgs="$pkgs wine32"
+    fi
+    if [[ $EUID -ne 0 ]]; then
+      sudo apt-get install -y $pkgs || { err "install failed"; return 1; }
+    else
+      apt-get install -y $pkgs || { err "install failed"; return 1; }
+    fi
+  fi
+  if ! command -v winetricks >/dev/null 2>&1; then
+    if [[ $EUID -ne 0 ]]; then
+      sudo apt-get install -y winetricks || { err "winetricks install failed"; return 1; }
+    else
+      apt-get install -y winetricks || { err "winetricks install failed"; return 1; }
+    fi
+  fi
+}
+
+WINE_BIN="$(command -v wine64 2>/dev/null || echo /usr/lib/wine/wine64)"
+[[ -x "$WINE_BIN" ]] || WINE_BIN="$(command -v wine 2>/dev/null || echo wine)"
+
+prefix_of() { echo "$WINEVM_ROOT/$1"; }
+
+vm_exists() {
+  [[ -d "$(prefix_of "$1")/drive_c" ]] || [[ -f "$(prefix_of "$1")/.vm" ]]
+}
+
+cmd_create() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  ensure_wine
+  local prefix; prefix="$(prefix_of "$name")"
+  if vm_exists "$name"; then
+    err "VM '$name' already exists at $prefix"
+    return 1
+  fi
+  mkdir -p "$prefix"
+  echo "win64" > "$prefix/.vm-arch"
+  echo "$WINE_VER" > "$prefix/.vm-winver"
+  touch "$prefix/.vm"
+  log "Creating Wine VM '$name' (prefix=$prefix, arch=win64, ver=$WINE_VER)"
+  WINEARCH=win64 WINEPREFIX="$prefix" wineboot -u >/dev/null 2>&1 || true
+  WINEARCH=win64 WINEPREFIX="$prefix" winetricks -q "$WINE_VER" >/dev/null 2>&1 || true
+  log "VM '$name' ready. Install an app: neos-winevm install $name <app.exe>"
+}
+
+cmd_list() {
+  if [[ ! -d "$WINEVM_ROOT" ]]; then
+    log "No Wine VMs yet. Create one: neos-winevm create myvm"
+    return 0
+  fi
+  local d
+  for d in "$WINEVM_ROOT"/*/; do
+    [[ -f "$d/.vm" ]] || continue
+    local name; name="$(basename "$d")"
+    local ver; ver="$(cat "$d/.vm-winver" 2>/dev/null || echo win10)"
+    local apps; apps="$(find "$d/drive_c" -type f -iname '*.exe' 2>/dev/null | wc -l)"
+    printf '%-16s  win%s  %d app(s)  %s\n' "$name" "${ver#win}" "$apps" "$d"
+  done
+}
+
+cmd_run() {
+  local name="$1"; shift
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  [[ "${1:-}" == "--" ]] && shift
+  local app="$1"
+  [[ -n "$app" ]] || { err "no application given after --"; usage; return 1; }
+  local abs_app
+  if [[ "$app" =~ ^[A-Za-z]: ]]; then
+    # Windows-style path C:\...
+    abs_app=""
+  elif [[ -e "$app" ]]; then
+    abs_app="$(readlink -f "$app")"
+  else
+    abs_app=""
+  fi
+  ensure_wine
+  log "Running '$*' in Wine VM '$name'"
+  if [[ -n "$abs_app" ]]; then
+    WINEARCH=win64 WINEPREFIX="$prefix" WINEDEBUG=-all "$WINE_BIN" "$abs_app" "${@:2}"
+  else
+    WINEARCH=win64 WINEPREFIX="$prefix" WINEDEBUG=-all "$WINE_BIN" "$@"
+  fi
+}
+
+cmd_install() {
+  local name="$1"; shift
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  local app="$1"
+  [[ -n "$app" ]] || { err "no installer given"; usage; return 1; }
+  [[ -e "$app" ]] || { err "file not found: $app"; return 1; }
+  ensure_wine
+  log "Installing '$(basename "$app")' into Wine VM '$name'"
+  WINEARCH=win64 WINEPREFIX="$prefix" WINEDEBUG=-all "$WINE_BIN" "$(readlink -f "$app")"
+}
+
+cmd_config() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  ensure_wine
+  WINEARCH=win64 WINEPREFIX="$prefix" winetricks --gui
+}
+
+cmd_apps() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  find "$prefix/drive_c" -type f -iname '*.exe' 2>/dev/null \
+    | sed "s|$prefix/drive_c/||" | awk '{ print "C:\\\\" $0 }'
+}
+
+cmd_info() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  echo "Name    : $name"
+  echo "Prefix  : $prefix"
+  echo "Arch    : $(cat "$prefix/.vm-arch" 2>/dev/null || echo win64)"
+  echo "WinVer  : $(cat "$prefix/.vm-winver" 2>/dev/null || echo win10)"
+  echo "Wine    : $(command -v wine || echo not-installed)"
+  echo "Apps    : $(find "$prefix/drive_c" -type f -iname '*.exe' 2>/dev/null | wc -l)"
+}
+
+cmd_remove() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "missing VM name"; usage; return 1; }
+  local prefix; prefix="$(prefix_of "$name")"
+  vm_exists "$name" || { err "VM '$name' does not exist"; return 1; }
+  log "Removing Wine VM '$name'"
+  rm -rf "$prefix"
+  log "Removed."
+}
+
+cmd="${1:-help}"
+shift || true
+case "$cmd" in
+  create)  cmd_create "$@";;
+  list)    cmd_list;;
+  run)     cmd_run "$@";;
+  install) cmd_install "$@";;
+  config)  cmd_config "$@";;
+  apps)    cmd_apps "$@";;
+  info)    cmd_info "$@";;
+  remove)  cmd_remove "$@";;
+  help|-h|--help) usage;;
+  *) err "unknown command: $cmd"; usage; exit 1;;
+esac

@@ -1,0 +1,383 @@
+#!/usr/bin/env bash
+# neolibs — NeoOS multi-version shared-library manager.
+#
+# Install, list, select and run applications against multiple versions of
+# the same shared library. Versions are stored under /opt/neolibs/store and
+# the active version is exposed through /opt/neolibs/active, which is
+# registered in /etc/ld.so.conf.d/neolibs.conf so ld.so picks it up.
+#
+# Examples:
+#   neolibs install zlib@1.2.13 --from /path/libz.so.1.2.13
+#   neolibs install openssl@3.2 --from-url https://.../libssl.so.3.2
+#   neolibs list
+#   neolibs use zlib@1.2.13
+#   neolibs run zlib@1.2.13 -- someapp
+#   neolibs remove zlib@1.2.13
+
+set -euo pipefail
+
+NEOLIBS_ROOT="${NEOLIBS_ROOT:-/opt/neolibs}"
+STORE="$NEOLIBS_ROOT/store"
+ACTIVE="$NEOLIBS_ROOT/active"
+REGISTRY="${NEOLIBS_REGISTRY:-/var/lib/neolibs}"
+LD_CONF_DIR="/etc/ld.so.conf.d"
+LD_CONF_FILE="$LD_CONF_DIR/neolibs.conf"
+
+if [[ ! -w "$(dirname "$NEOLIBS_ROOT")" ]] && [[ $EUID -ne 0 ]]; then
+  # Fall back to a per-user root when not writable (e.g. proot/termux).
+  NEOLIBS_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/neolibs"
+  STORE="$NEOLIBS_ROOT/store"
+  ACTIVE="$NEOLIBS_ROOT/active"
+  REGISTRY="$NEOLIBS_ROOT/registry"
+  LD_CONF_DIR="${LD_CONF_DIR:-}"
+  LD_CONF_FILE="${LD_CONF_FILE:-}"
+fi
+
+log() { printf '\033[1;35m[neolibs]\033[0m %s\n' "$*"; }
+err()  { printf '\033[1;31m[neolibs]\033[0m %s\n' "$*" >&2; }
+
+usage() {
+  cat <<'EOF'
+NeoLIBs — multi-version shared-library manager
+
+Usage: neolibs <command> [arguments]
+
+Commands:
+  list [name]               List installed libraries and their versions
+  current [name]            Show the active version for a library
+  install <name>@<version> --from <file|dir>
+                            Install a library version from a .so file or dir
+                            of .so files. Also: --from-url <url>, --from-deb <pkg>
+  use <name>@<version>      Activate a version globally (via ld.so.conf.d)
+  run <name>@<version> -- cmd [args...]
+                            Run a command against a specific version
+                            (LD_LIBRARY_PATH based, no root needed)
+  remove <name>@<version>   Remove an installed version
+  sync                      Rebuild the active symlink tree + ldconfig
+  doctor                    Check the environment integration
+
+Environment:
+  NEOLIBS_ROOT   where libraries are stored (default /opt/neolibs)
+  NEOLIBS_REGISTRY   state directory (default /var/lib/neolibs)
+
+Examples:
+  neolibs install zlib@1.2.13 --from libz.so.1.2.13
+  neolibs use zlib@1.2.13
+  neolibs run openssl@3.2 -- openssl version
+EOF
+}
+
+# --- helpers ---------------------------------------------------------------
+
+sanitize() { echo "$1" | tr -cd 'a-zA-Z0-9._-'; }
+
+valid_spec() {
+  # expects name@version
+  local spec="$1"
+  [[ "$spec" == *"@"* ]] || { err "expected <name>@<version>, got: $spec"; return 1; }
+  local name="${spec%%@*}"
+  local ver="${spec#*@}"
+  [[ -n "$name" && -n "$ver" ]] || { err "empty name or version in: $spec"; return 1; }
+  echo "$(sanitize "$name")@$(sanitize "$ver")"
+}
+
+ensure_dirs() {
+  mkdir -p "$STORE" "$ACTIVE" "$REGISTRY"
+}
+
+version_dir() { echo "$STORE/$1"; }
+registry_file() { echo "$REGISTRY/$1.reg"; }
+
+# --- install ---------------------------------------------------------------
+
+cmd_install() {
+  local spec
+  spec="$1"
+  if [[ -z "$spec" ]]; then usage; return 1; fi
+  spec="$(valid_spec "$spec")" || return 1
+  local name="${spec%%@*}" ver="${spec#*@}"
+  local src="" mode="file"
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from) src="$2"; mode="file"; shift 2;;
+      --from-url) src="$2"; mode="url"; shift 2;;
+      --from-deb) src="$2"; mode="deb"; shift 2;;
+      *) err "unknown option: $1"; usage; return 1;;
+    esac
+  done
+  if [[ -z "$src" ]]; then
+    err "missing --from <file|dir> or --from-url <url> or --from-deb <pkg>"
+    usage
+    return 1
+  fi
+  ensure_dirs
+
+  case "$mode" in
+    file)
+      install_file "$name" "$ver" "$src" || return 1
+      ;;
+    url)
+      local tmp
+      tmp="$(mktemp -d)"
+      log "Downloading $url"
+      if command -v curl >/dev/null 2>&1; then
+        curl -fSL -o "$tmp/pkg" "$src" || { err "download failed"; rm -rf "$tmp"; return 1; }
+      else
+        wget -q -O "$tmp/pkg" "$src" || { err "download failed"; rm -rf "$tmp"; return 1; }
+      fi
+      install_file "$name" "$ver" "$tmp/pkg" || { rm -rf "$tmp"; return 1; }
+      rm -rf "$tmp"
+      ;;
+    deb)
+      local tmp pkg="$src"
+      tmp="$(mktemp -d)"
+      log "Downloading $pkg from apt"
+      ( cd "$tmp" && apt-get download "$pkg" ) >/dev/null 2>&1 \
+        || { err "could not download package $pkg"; rm -rf "$tmp"; return 1; }
+      local deb
+      deb="$(ls "$tmp"/*.deb 2>/dev/null | head -1)"
+      dpkg-deb -x "$deb" "$tmp/x"
+      local found=0 f tmpfiles
+      tmpfiles="$(mktemp)"
+      find "$tmp/x" -type f -name '*.so*' 2>/dev/null > "$tmpfiles"
+      mkdir -p "$STORE/$name/$ver/lib"
+      while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
+        cp -a "$f" "$STORE/$name/$ver/lib/"
+        found=1
+      done < "$tmpfiles"
+      rm -f "$tmpfiles"
+      rm -rf "$tmp"
+      if [[ $found -eq 1 ]]; then
+        register "$name" "$ver" "apt:$pkg"
+        cmd_sync
+        return 0
+      else
+        err "no shared libraries found in package $pkg"
+        return 1
+      fi
+      ;;
+  esac
+  cmd_sync
+}
+
+install_file() {
+  local name="$1" ver="$2" src="$3"
+  local dest="$STORE/$name/$ver/lib"
+  mkdir -p "$dest"
+  if [[ -d "$src" ]]; then
+    local f
+    local found=0 tmpfiles
+    tmpfiles="$(mktemp)"
+    find "$src" -type f -name '*.so*' > "$tmpfiles"
+    while IFS= read -r f; do
+      [[ -n "$f" ]] || continue
+      cp -a "$f" "$dest/"
+      found=1
+    done < "$tmpfiles"
+    rm -f "$tmpfiles"
+    [[ $found -eq 1 ]] || { err "no *.so* files found in dir: $src"; return 1; }
+  elif [[ -f "$src" ]]; then
+    cp -a "$src" "$dest/"
+  else
+    err "source not found: $src"
+    return 1
+  fi
+  register "$name" "$ver" "$src"
+  log "Installed $name@$ver -> $dest"
+}
+
+register() {
+  local name="$1" ver="$2" src="$3"
+  local rf; rf="$(registry_file "$name")"
+  if [[ ! -f "$rf" ]] || ! grep -qx "$ver" "$rf" 2>/dev/null; then
+    echo "$ver" >> "$rf"
+  fi
+  echo "$src" > "$STORE/$name/$ver/.source"
+}
+
+# --- list / current ----------------------------------------------------------
+
+cmd_list() {
+  ensure_dirs
+  local filter="${1:-}"
+  local name
+  for rf in "$REGISTRY"/*.reg; do
+    [[ -f "$rf" ]] || continue
+    name="$(basename "$rf" .reg)"
+    if [[ -n "$filter" && "$name" != "$filter" ]]; then continue; fi
+    local cur
+    cur="$(active_version "$name")" || cur="none"
+    echo -e "\n\033[1;37m$name\033[0m  (active: ${cur:-none})"
+    local ver
+    while IFS= read -r ver; do
+      [[ -n "$ver" ]] || continue
+      local marker="  "
+      [[ "$ver" == "$cur" ]] && marker="*>"
+      printf '   %s %s\n' "$marker" "$ver"
+    done < "$rf"
+  done
+}
+
+# active_version <name> — resolve the currently active version for a library
+active_version() {
+  local name="$1"
+  local v
+  v="$(cat "$ACTIVE/$name/.active-version" 2>/dev/null || true)"
+  if [[ -n "$v" ]]; then echo "$v"; return 0; fi
+  local tgt
+  tgt="$(readlink "$ACTIVE/$name" 2>/dev/null || true)"
+  if [[ -n "$tgt" ]]; then echo "${tgt##*/}"; return 0; fi
+  return 1
+}
+
+cmd_current() {
+  local name="${1:-}"
+  if [[ -z "$name" ]]; then
+    ensure_dirs
+    local rf
+    for rf in "$REGISTRY"/*.reg; do
+      [[ -f "$rf" ]] || continue
+      name="$(basename "$rf" .reg)"
+      local cur
+      cur="$(active_version "$name")" || cur="none"
+      printf '%s %s\n' "$name" "$cur"
+    done
+    return 0
+  fi
+  active_version "$name" || echo "none"
+}
+
+# --- use ---------------------------------------------------------------------
+
+cmd_use() {
+  local spec="$1"
+  [[ -n "$spec" ]] || { usage; return 1; }
+  spec="$(valid_spec "$spec")" || return 1
+  local name="${spec%%@*}" ver="${spec#*@}"
+  [[ -d "$STORE/$name/$ver" ]] || { err "$name@$ver is not installed"; return 1; }
+  mkdir -p "$ACTIVE/$name"
+  rm -f "$ACTIVE/$name"/*
+  ln -sfn "$STORE/$name/$ver/lib" "$ACTIVE/$name/lib"
+  if [[ -d "$STORE/$name/$ver/lib" ]]; then
+    local f tmpfiles
+    tmpfiles="$(mktemp)"
+    find "$STORE/$name/$ver/lib" -maxdepth 1 -name '*.so*' > "$tmpfiles"
+    while IFS= read -r f; do
+      [[ -n "$f" ]] || continue
+      ln -sfn "$f" "$ACTIVE/$name/$(basename "$f")"
+    done < "$tmpfiles"
+    rm -f "$tmpfiles"
+  fi
+  echo "$ver" > "$ACTIVE/$name/.active-version"
+  write_ld_conf
+  log "Activated $name@$ver"
+  if [[ $EUID -eq 0 ]] && command -v ldconfig >/dev/null 2>&1; then
+    ldconfig 2>/dev/null || true
+  fi
+}
+
+# --- run (per-command version pinning, no root needed) -------------------------
+
+cmd_run() {
+  local spec="$1"
+  [[ -n "$spec" ]] || { usage; return 1; }
+  spec="$(valid_spec "$spec")" || return 1
+  local name="${spec%%@*}" ver="${spec#*@}"
+  local libdir="$STORE/$name/$ver/lib"
+  [[ -d "$libdir" ]] || { err "$name@$ver is not installed"; return 1; }
+  shift
+  [[ "${1:-}" == "--" ]] && shift
+  [[ $# -ge 1 ]] || { err "no command given after --"; return 1; }
+  printf '\033[1;35m[neolibs]\033[0m %s\n' "Running with LD_LIBRARY_PATH=$libdir" >&2
+  LD_LIBRARY_PATH="$libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$@"
+}
+
+# --- remove -------------------------------------------------------------------
+
+cmd_remove() {
+  local spec="$1"
+  spec="$(valid_spec "$spec")" || return 1
+  local name="${spec%%@*}" ver="${spec#*@}"
+  local rf; rf="$(registry_file "$name")"
+  if [[ -d "$STORE/$name/$ver" ]]; then
+    rm -rf "$STORE/$name/$ver"
+    log "Removed $name@$ver"
+  else
+    err "$name@$ver not found"
+    return 1
+  fi
+  if [[ -f "$rf" ]]; then
+    sed -i "\|^$ver$|d" "$rf"
+    if [[ ! -s "$rf" ]]; then
+      rm -f "$rf"
+      rm -f "$ACTIVE/$name" 2>/dev/null || true
+    fi
+  fi
+  cmd_sync
+}
+
+# --- sync / ld.so integration -------------------------------------------------
+
+write_ld_conf() {
+  if [[ -n "$LD_CONF_FILE" ]]; then
+    mkdir -p "$(dirname "$LD_CONF_FILE")" 2>/dev/null || true
+    if [[ $EUID -eq 0 ]]; then
+      {
+        echo "# NeoLIBs — managed by neolibs"
+        echo "$ACTIVE"
+      } > "$LD_CONF_FILE"
+    fi
+  fi
+}
+
+cmd_sync() {
+  ensure_dirs
+  write_ld_conf
+  if [[ $EUID -eq 0 ]] && command -v ldconfig >/dev/null 2>&1; then
+    ldconfig 2>/dev/null || true
+  fi
+  log "Symlink tree and ld.so cache synchronized"
+}
+
+# --- doctor -------------------------------------------------------------------
+
+cmd_doctor() {
+  ensure_dirs
+  echo "NeoLIBs root : $NEOLIBS_ROOT"
+  echo "Registry     : $REGISTRY"
+  if [[ -n "$LD_CONF_FILE" && $EUID -eq 0 ]]; then
+    echo "ld.so conf   : $LD_CONF_FILE ($(cat "$LD_CONF_FILE" 2>/dev/null || echo missing))"
+  else
+    echo "ld.so conf   : skipped (non-root / disabled)"
+  fi
+  local count=0
+  local rf
+  for rf in "$REGISTRY"/*.reg; do
+    [[ -f "$rf" ]] || continue
+    count=$((count + $(wc -l < "$rf")))
+  done
+  echo "Installed    : $count library version(s)"
+  if command -v ldconfig >/dev/null 2>&1 && [[ $EUID -eq 0 ]]; then
+    echo "ldconfig     : available"
+  fi
+}
+
+# --- main ----------------------------------------------------------------------
+
+ensure_dirs
+cmd="${1:-help}"
+shift || true
+case "$cmd" in
+  install) cmd_install "$@";;
+  list)    cmd_list "$@";;
+  current) cmd_current "$@";;
+  use)     cmd_use "$@";;
+  run)     cmd_run "$@";;
+  remove)  cmd_remove "$@";;
+  sync)    cmd_sync;;
+  doctor)  cmd_doctor;;
+  help|-h|--help) usage;;
+  *) err "unknown command: $cmd"; usage; return 1 2>/dev/null || exit 1;;
+esac

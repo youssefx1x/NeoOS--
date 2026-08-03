@@ -1,0 +1,7 @@
+wine
+winetricks
+wine64
+libwine
+libwine-dev
+qemu-system-x86
+qemu-utils

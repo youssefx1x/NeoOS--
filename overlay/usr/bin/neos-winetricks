@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# neos-winetricks — Wine + Winetricks setup helper for NeoOS (compat wrapper).
+# Thin wrapper around neos-wine / neos-winevm.
+#   neos-winetricks install   -> install Wine + Winetricks
+#   neos-winetricks config    -> Winetricks GUI for the default prefix
+#   neos-winetricks run -- cmd -> run a command in the default prefix
+
+set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NEOS_WINE="${NEOS_WINE:-$(command -v neos-wine || echo "$SELF_DIR/neos-wine")}"
+
+case "${1:-}" in
+  install)
+    "$NEOS_WINE" --install
+    ;;
+  config|setup)
+    "$NEOS_WINE" --setup
+    ;;
+  run)
+    shift
+    [[ "${1:-}" == "--" ]] && shift
+    "$NEOS_WINE" "$@"
+    ;;
+  *)
+    "$NEOS_WINE" --setup
+    ;;
+esac

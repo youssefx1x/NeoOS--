@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# neos-wine — run Windows .exe terminal (console) applications in NeoOS.
+#
+# Usage:
+#   neos-wine <app.exe> [args...]           run a Windows console app
+#   neos-wine --install                     install wine + winetricks
+#   neos-wine --prefix /path/to/prefix      use a custom prefix
+#   neos-wine --arch win64|win32            prefix architecture (default win64)
+#   neos-wine --winver win10                set reported Windows version
+#   neos-wine --setup                       run winetricks setup UI
+#   neos-wine --list-apps                   list installed .exe apps in prefix
+#
+# Console/terminal Windows apps (cmd-style output) work out of the box;
+# the WINEDEBUG channel is quieted so stdout/stderr from the app is clean.
+
+set -euo pipefail
+
+log() { printf '\033[1;36m[neos-wine]\033[0m %s\n' "$*"; }
+err()  { printf '\033[1;31m[neos-wine]\033[0m %s\n' "$*" >&2; }
+
+WINE_ROOT="${WINEPREFIX:-$HOME/.wine}"
+WINE_ARCH="${WINEARCH:-win64}"
+WINE_VER="${WINEVER:-win10}"
+
+ensure_wine() {
+  if ! command -v wine >/dev/null 2>&1 && ! command -v wine64 >/dev/null 2>&1; then
+    log "Installing Wine"
+    local pkgs="wine winetricks wine64 libwine"
+    # wine32 (i386) is optional — only add it when a real candidate exists
+    if [[ -n "$(apt-cache policy wine32 2>/dev/null | awk '/Candidate:/{print $2}' | grep -v none)" ]]; then
+      pkgs="$pkgs wine32"
+    fi
+    if [[ $EUID -ne 0 ]]; then
+      sudo apt-get install -y $pkgs || { err "install failed"; return 1; }
+    else
+      apt-get install -y $pkgs || { err "install failed"; return 1; }
+    fi
+  fi
+  if ! command -v winetricks >/dev/null 2>&1; then
+    log "Installing Winetricks"
+    if [[ $EUID -ne 0 ]]; then
+      sudo apt-get install -y winetricks || { err "winetricks install failed"; return 1; }
+    else
+      apt-get install -y winetricks || { err "winetricks install failed"; return 1; }
+    fi
+  fi
+}
+
+# Prefer wine64 so we never trip the wine32/multiarch warning wrapper.
+WINE_BIN="$(command -v wine64 2>/dev/null || echo /usr/lib/wine/wine64)"
+[[ -x "$WINE_BIN" ]] || WINE_BIN="$(command -v wine 2>/dev/null || echo wine)"
+if [[ "$WINE_ARCH" == "win32" ]]; then
+  WINE_BIN="$(command -v wine 2>/dev/null || echo wine)"
+fi
+
+init_prefix() {
+  if [[ ! -d "$WINE_ROOT/drive_c" ]]; then
+    log "Creating Wine prefix: $WINE_ROOT (arch=$WINE_ARCH)"
+    mkdir -p "$WINE_ROOT"
+    WINEARCH="$WINE_ARCH" WINEPREFIX="$WINE_ROOT" wineboot -u >/dev/null 2>&1 || true
+    # Set reported Windows version via winetricks
+    WINEARCH="$WINE_ARCH" WINEPREFIX="$WINE_ROOT" winetricks -q "$WINE_VER" >/dev/null 2>&1 || true
+  fi
+}
+
+env() {
+  WINEARCH="$WINE_ARCH" WINEPREFIX="$WINE_ROOT" WINEDEBUG="${WINEDEBUG:--all}" "$@"
+}
+
+case "${1:-}" in
+  --install)
+    ensure_wine
+    init_prefix
+    log "Wine ready. Run: neos-wine <app.exe>"
+    ;;
+  --setup)
+    ensure_wine
+    init_prefix
+    WINEARCH="$WINE_ARCH" WINEPREFIX="$WINE_ROOT" winetricks --gui
+    ;;
+  --prefix)
+    shift
+    WINE_ROOT="$1"
+    shift
+    ensure_wine
+    init_prefix
+    exec env "$WINE_BIN" "$@"
+    ;;
+  --arch)
+    shift
+    WINE_ARCH="$1"
+    shift
+    ensure_wine
+    init_prefix
+    exec env "$WINE_BIN" "$@"
+    ;;
+  --winver)
+    shift
+    WINE_VER="$1"
+    shift
+    ensure_wine
+    init_prefix
+    exec env "$WINE_BIN" "$@"
+    ;;
+  --list-apps)
+    ensure_wine
+    init_prefix
+    find "$WINE_ROOT/drive_c" -type f -iname '*.exe' 2>/dev/null \
+      | sed "s|$WINE_ROOT/drive_c/||" | awk '{ print "C:\\\\" $0 }'
+    ;;
+  *)
+    if [[ $# -eq 0 ]]; then
+      ensure_wine
+      init_prefix
+      WINEARCH="$WINE_ARCH" WINEPREFIX="$WINE_ROOT" winetricks --help
+      exit 0
+    fi
+    [[ "${1:-}" == "--" ]] && shift
+    ensure_wine
+    init_prefix
+    log "Running Windows app: $* (prefix=$WINE_ROOT, ver=$WINE_VER)"
+    exec env "$WINE_BIN" "$@"
+    ;;
+esac

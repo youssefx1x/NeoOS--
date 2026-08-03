@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# neos-menu — NeoOS terminal start menu
+# Categories: Code applications (updated), Internet, Drivers, Wayland, System.
+
+set -euo pipefail
+
+# Whiptail is lighter than dialog; fall back to dialog if needed.
+if command -v whiptail >/dev/null 2>&1; then
+  MENU="whiptail"
+elif command -v dialog >/dev/null 2>&1; then
+  MENU="dialog"
+else
+  echo "neos-menu requires whiptail or dialog. Install one of: apt install whiptail dialog"
+  exit 1
+fi
+
+BOX() {
+  local title="$1" prompt="$2" height="$3" width="$4" listname="$5"
+  shift 5
+  if [[ "$MENU" == "dialog" ]]; then
+    dialog --title "$title" --menu "$prompt" "$height" "$width" "$listname" "$@"
+  else
+    whiptail --title "$title" --menu "$prompt" "$height" "$width" "$listname" "$@"
+  fi
+}
+
+run_as_root() {
+  if [[ $EUID -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    echo "root required: $*"
+    return 1
+  fi
+}
+
+main_menu() {
+  local choice
+  choice=$(BOX "NeoOS" "Select a section (arrows/enter, Tab to switch)" 22 70 12 \
+    "Code"      "Updated code applications (compilers, editors, toolchains)" \
+    "Internet"  "Browsers, messaging, network utilities" \
+    "Drivers"   "Hardware / driver installer" \
+    "Wayland"   "Wayland session and graphics stack" \
+    "Wine"      "Windows apps: neos-wine + neos-winevm (Win10 VM)" \
+    "NeoLIBs"   "Multi-version library manager" \
+    "System"    "System update, packages, shell, power" \
+    "Quit"      "Exit to shell" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    Code)     code_menu;;
+    Internet) internet_menu;;
+    Drivers)  run_as_root neos-drivers || { pause; main_menu; };;
+    Wayland)  wayland_menu;;
+    Wine)     wine_menu;;
+    NeoLIBs)  neolibs_menu;;
+    System)   system_menu;;
+    Quit|"")  return 0;;
+  esac
+  main_menu
+}
+
+code_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Code" "Choose a code application" 22 70 12 \
+    "Install toolchain" "build-essential, gcc, g++, make, cmake, git" \
+    "Install editors"   "vim, neovim, emacs-nox, micro" \
+    "Install languages" "python3-dev, nodejs, rustc, golang, openjdk" \
+    "Install debuggers" "gdb, valgrind, strace, ltrace" \
+    "Update code apps"  "apt update && apt upgrade (code applications)" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Install toolchain") run_as_root apt install -y build-essential gcc g++ make cmake ninja-build git || pause;;
+    "Install editors")   run_as_root apt install -y vim neovim emacs-nox micro || pause;;
+    "Install languages") run_as_root apt install -y python3-dev python3-pip nodejs npm rustc cargo golang default-jdk-headless || pause;;
+    "Install debuggers") run_as_root apt install -y gdb valgrind strace ltrace || pause;;
+    "Update code apps")  run_as_root apt update && run_as_root apt upgrade -y || pause;;
+    *) return 0;;
+  esac
+  pause
+}
+
+internet_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Internet" "Choose an internet application" 22 70 12 \
+    "Install browsers"  "lynx, w3m, links terminal browsers" \
+    "Install tools"     "curl, wget, aria2, openssh-client, rsync" \
+    "Install network"   "nmap, dnsutils, whois, netcat, traceroute" \
+    "Install messaging" "weechat, irssi terminal IRC" \
+    "Configure network" "ip, ping, ethtool, network setup" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Install browsers") run_as_root apt install -y lynx w3m links elinks || pause;;
+    "Install tools")    run_as_root apt install -y curl wget aria2 openssh-client rsync || pause;;
+    "Install network")  run_as_root apt install -y nmap dnsutils whois netcat-openbsd traceroute || pause;;
+    "Install messaging")run_as_root apt install -y weechat irssi || pause;;
+    "Configure network") run_as_root sh -c 'dhclient -v; ip addr; ip route' 2>/dev/null || true; pause;;
+    *) return 0;;
+  esac
+  pause
+}
+
+wayland_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Wayland" "Wayland graphics stack" 22 70 12 \
+    "Start Wayland"    "Launch Weston compositor with xwayland" \
+    "Install Wayland"  "wayland, weston, wlroots, seatd, xwayland" \
+    "Install Winetricks" "Wine + winetricks (Windows app installer)" \
+    "Wayland apps"     "foot, wmenu terminal + launcher" \
+    "Drivers for GPU"  "mesa drivers, firmware (neos-drivers)" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Start Wayland")   neos-wayland;;
+    "Install Wayland") run_as_root apt install -y wayland weston wlroots seatd xwayland foot wmenu || pause;;
+    "Install Winetricks") neos-wine --install 2>&1 || true;;
+    "Wayland apps")    run_as_root apt install -y foot wmenu || pause;;
+    "Drivers for GPU") run_as_root neos-drivers || pause;;
+    *) return 0;;
+  esac
+  pause
+}
+
+neolibs_menu() {
+  local choice
+  choice=$(BOX "NeoOS - NeoLIBs" "Multi-version library manager" 22 70 12 \
+    "List libraries"  "neolibs list" \
+    "Use a version"   "neolibs use <name>@<version>" \
+    "Install version" "neolibs install <name>@<version>" \
+    "Help"            "neolibs --help" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "List libraries")  neolibs list; pause;;
+    "Use a version")   read -r -p "name@version (e.g. zlib@1.3.1): " spec; neolibs use "$spec" 2>&1 || true; pause;;
+    "Install version") read -r -p "name@version (e.g. zlib@1.3.1): " spec; neolibs install "$spec" 2>&1 || true; pause;;
+    "Help")            neolibs --help; pause;;
+    *) return 0;;
+  esac
+}
+
+wine_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Wine" "Windows apps via Wine (Windows 10)" 22 72 12 \
+    "Install Wine"   "wine + winetricks stack" \
+    "Run an .exe"    "neos-wine <app.exe> (terminal/console apps)" \
+    "Wine setup"     "Winetricks GUI (prefix config, components)" \
+    "List Wine apps" "list installed .exe in the default prefix" \
+    "VM: create"     "neos-winevm create <name> (isolated Win10 VM)" \
+    "VM: list"       "neos-winevm list" \
+    "VM: run app"    "neos-winevm run <name> -- <app.exe>" \
+    "VM: install app" "neos-winevm install <name> <setup.exe>" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Install Wine")     neos-wine --install 2>&1 || true;;
+    "Run an .exe")      read -r -p ".exe path: " exe; neos-wine "$exe" 2>&1 || true; pause;;
+    "Wine setup")       neos-wine --setup 2>&1 || true;;
+    "List Wine apps")   neos-wine --list-apps 2>&1 || true; pause;;
+    "VM: create")       read -r -p "VM name (e.g. mywin10): " vmn; neos-winevm create "$vmn" 2>&1 || true; pause;;
+    "VM: list")         neos-winevm list 2>&1 || true; pause;;
+    "VM: run app")      read -r -p "VM name: " vmn; read -r -p ".exe path: " exe; neos-winevm run "$vmn" -- "$exe" 2>&1 || true; pause;;
+    "VM: install app")  read -r -p "VM name: " vmn; read -r -p "setup.exe path: " exe; neos-winevm install "$vmn" "$exe" 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+system_menu() {
+  local choice
+  choice=$(BOX "NeoOS - System" "System administration" 22 70 12 \
+    "Update system"   "apt update && apt upgrade" \
+    "Install packages" "apt install (prompt for name)" \
+    "Remove packages" "apt remove (prompt for name)" \
+    "Interactive shell" "Start a bash subshell (type exit to return)" \
+    "Edit sources"    "nano /etc/apt/sources.list" \
+    "Shutdown"        "Power off the machine" \
+    "Reboot"          "Restart the machine" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Update system")    run_as_root apt update && run_as_root apt upgrade -y || pause;;
+    "Install packages") read -r -p "packages: " pkgs; run_as_root apt install -y $pkgs 2>&1 || true; pause;;
+    "Remove packages")  read -r -p "packages: " pkgs; run_as_root apt remove -y $pkgs 2>&1 || true; pause;;
+    "Interactive shell") bash;;
+    "Edit sources")     run_as_root nano /etc/apt/sources.list 2>&1 || true;;
+    "Shutdown")         run_as_root shutdown -h now 2>&1 || true; return 0;;
+    "Reboot")           run_as_root reboot 2>&1 || true; return 0;;
+    *) return 0;;
+  esac
+  pause
+}
+
+pause() {
+  read -r -p "Press Enter to continue..."
+}
+
+main_menu

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# build-iso.sh — create a bootable NeoOS live ISO from a rootfs.
+# Uses grub-mkrescue + squashfs. Requires the rootfs to already contain
+# a kernel, initramfs and grub config (see setup-iso.sh, run via chroot).
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NEOS_ROOTFS="${NEOS_ROOTFS:-$REPO_ROOT/build/rootfs}"
+NEOS_ISO="${NEOS_ISO:-$REPO_ROOT/build/neoos.iso}"
+NEOS_ARCH="${NEOS_ARCH:-amd64}"
+
+log() { printf '\033[1;36m[neos-iso]\033[0m %s\n' "$*"; }
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "missing required tool: $1" >&2
+    exit 1
+  }
+}
+require grub-mkrescue
+require xorriso
+
+if ! compgen -G "$NEOS_ROOTFS/boot/vmlinuz-*" >/dev/null; then
+  echo "rootfs does not contain a kernel yet: $NEOS_ROOTFS" >&2
+  echo "run scripts/setup-iso.sh inside the rootfs first" >&2
+  exit 1
+fi
+
+ISODIR="$REPO_ROOT/build/iso-staging"
+rm -rf "$ISODIR"
+mkdir -p "$ISODIR/boot/grub" "$ISODIR/live"
+
+log "Creating squashfs from rootfs"
+mksquashfs "$NEOS_ROOTFS" "$ISODIR/live/filesystem.squashfs" -comp zstd -Xcompression-level 3 -noappend
+
+log "Copying kernel + initramfs"
+cp "$NEOS_ROOTFS"/boot/vmlinuz-* "$ISODIR/boot/vmlinuz"
+cp "$NEOS_ROOTFS"/boot/initrd.img-* "$ISODIR/boot/initrd.img"
+
+cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
+set timeout=5
+set default=0
+menuentry "NeoOS (Debian 13 trixie) — Live Terminal" {
+  linux /boot/vmlinuz boot=live quiet toram components
+  initrd /boot/initrd.img
+}
+menuentry "NeoOS — Safe Mode (nomodeset)" {
+  linux /boot/vmlinuz boot=live nomodeset components
+  initrd /boot/initrd.img
+}
+EOF
+
+log "Building ISO: $NEOS_ISO"
+grub-mkrescue -o "$NEOS_ISO" "$ISODIR" -- \
+  --boot-info-table \
+  --iso-level 3 \
+  --volid "NeoOS" 2>/dev/null || grub-mkrescue -o "$NEOS_ISO" "$ISODIR"
+
+ls -lh "$NEOS_ISO"
+log "ISO ready. Test with: qemu-system-x86_64 -cdrom $NEOS_ISO -m 2G"
