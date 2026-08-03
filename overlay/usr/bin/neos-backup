@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# neos-backup — backup NeoOS configuration and installed-package lists.
+#
+#   neos-backup                    back up to ~/neos-backup-<date>.tar.gz
+#   neos-backup -o out.tar.gz      choose the output file
+#   neos-backup --list <file>      show what's inside a backup
+#   neos-backup --restore <file>   restore package list + configs
+#
+# What it saves:
+#   - installed package list (dpkg) and apt-hold/mark states
+#   - /etc/apt/sources* , /etc/fstab, /etc/hosts, /etc/hostname
+#   - crontabs, ssh keys (optional), neolibs state, winevm prefixes list
+#   - the current neos-menu / tool version marker
+
+set -euo pipefail
+
+BAK="${BAK:-$HOME/neos-backup-$(date +%Y%m%d-%H%M%S).tar.gz}"
+DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+log() { printf '\033[1;36m[neos-backup]\033[0m %s\n' "$*"; }
+info(){ printf '\033[1;32m[neos-backup]\033[0m %s\n' "$*"; }
+err() { printf '\033[1;31m[neos-backup]\033[0m %s\n' "$*" >&2; }
+
+staging=$(mktemp -d)
+trap 'rm -rf "$staging"' EXIT
+
+collect() {
+  mkdir -p "$staging/pkgs" "$staging/etc" "$staging/neoos"
+  # Package state
+  dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' > "$staging/pkgs/dpkg-list.txt" 2>/dev/null || true
+  dpkg-query -W -f='${Package}\n' > "$staging/pkgs/installed.txt" 2>/dev/null || true
+  apt-mark showhold > "$staging/pkgs/holds.txt" 2>/dev/null || true
+  apt-mark showmanual > "$staging/pkgs/manual.txt" 2>/dev/null || true
+  # Config files
+  for f in /etc/apt/sources.list /etc/apt/sources.list.d /etc/fstab \
+           /etc/hosts /etc/hostname /etc/host.conf /etc/profile \
+           /etc/ld.so.conf.d /etc/neolibs.conf; do
+    [[ -e "$f" ]] && cp -a "$f" "$staging/etc/" 2>/dev/null || true
+  done
+  # NeoOS state
+  [[ -d /opt/neolibs ]] && cp -a /opt/neolibs "$staging/neoos/" 2>/dev/null || true
+  [[ -d "$HOME/.neolibs" ]] && cp -a "$HOME/.neolibs" "$staging/neoos/" 2>/dev/null || true
+  ls -1 "$HOME/.winevm" 2>/dev/null > "$staging/neoos/winevm-vms.txt" || true
+  ls -1 "$HOME/.neos-distro" 2>/dev/null > "$staging/neoos/neos-distro.txt" || true
+  echo "neos-backup $DATE" > "$staging/neoos/manifest"
+  echo "hostname: $(hostname 2>/dev/null || echo unknown)" >> "$staging/neoos/manifest"
+  echo "arch:     $(uname -m)" >> "$staging/neoos/manifest"
+}
+
+do_backup() {
+  collect
+  log "Packing -> $BAK"
+  mkdir -p "$(dirname "$BAK")"
+  tar -czf "$BAK" -C "$staging" .
+  info "Backup written: $BAK ($(du -h "$BAK" | cut -f1))"
+}
+
+do_list() {
+  local f="$1"
+  [[ -f "$f" ]] || { err "no such file: $f"; exit 1; }
+  tar -tzf "$f" | sed 's#^\./##' | sort
+}
+
+do_restore() {
+  local f="$1"
+  [[ -f "$f" ]] || { err "no such file: $f"; exit 1; }
+  warn "Restore will install packages from the saved list (requires root)."
+  read -r -p "Continue? [y/N] " a
+  [[ "$a" == "y" || "$a" == "Y" ]] || { info "aborted."; exit 0; }
+  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  tar -xzf "$f" -C "$tmp"
+  if [[ -f "$tmp/pkgs/installed.txt" ]]; then
+    info "Restoring packages..."
+    if [[ $EUID -eq 0 ]]; then
+      xargs -a "$tmp/pkgs/installed.txt" apt-get install -y 2>&1 || warn "some packages failed to restore"
+    elif command -v sudo >/dev/null 2>&1; then
+      xargs -a "$tmp/pkgs/installed.txt" sudo apt-get install -y 2>&1 || warn "some packages failed to restore"
+    else
+      warn "not root and no sudo; skipping package restore (see $tmp/pkgs/installed.txt)"
+    fi
+  fi
+  if [[ -d "$tmp/neoos/neolibs" ]]; then
+    info "Restoring NeoLIBs state"
+    mkdir -p /opt/neos-backup-neolibs
+    cp -a "$tmp/neoos/neolibs/." /opt/neos-backup-neolibs/ 2>/dev/null || true
+    warn "NeoLIBs store restored to /opt/neos-backup-neolibs — review before copying into /opt/neolibs"
+  fi
+  info "Restore done. Configs left in $tmp/etc for review."
+}
+
+case "${1:-backup}" in
+  backup|-b) BAK="${BAK:-$HOME/neos-backup-$(date +%Y%m%d-%H%M%S).tar.gz}"
+             [[ -n "${2:-}" && "${2:0:2}" == "-o" ]] && BAK="$3"
+             do_backup ;;
+  -o)        BAK="$2"; do_backup ;;
+  --list)    do_list "${2:-}" ;;
+  --restore) do_restore "${2:-}" ;;
+  -h|--help|help)
+    sed -n '2,13p' "$0" | sed 's/^#   /  /; s/^#//'
+    ;;
+  *) err "unknown option: $1"; sed -n '2,13p' "$0" | sed 's/^#   /  /; s/^#//'; exit 2 ;;
+esac

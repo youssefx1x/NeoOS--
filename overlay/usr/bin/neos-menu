@@ -44,6 +44,7 @@ main_menu() {
     "Wayland"   "Wayland session and graphics stack" \
     "Wine"      "Windows apps: neos-wine + neos-winevm (Win10 VM)" \
     "NeoLIBs"   "Multi-version library manager" \
+    "Tools"     "pkg manager, distro installer, backup, fetch, ports" \
     "System"    "System update, packages, shell, power" \
     "Quit"      "Exit to shell" 3>&1 1>&2 2>&3)
   case "$choice" in
@@ -53,6 +54,7 @@ main_menu() {
     Wayland)  wayland_menu;;
     Wine)     wine_menu;;
     NeoLIBs)  neolibs_menu;;
+    Tools)    tools_menu;;
     System)   system_menu;;
     Quit|"")  return 0;;
   esac
@@ -157,6 +159,33 @@ wine_menu() {
     "VM: list")         neos-winevm list 2>&1 || true; pause;;
     "VM: run app")      read -r -p "VM name: " vmn; read -r -p ".exe path: " exe; neos-winevm run "$vmn" -- "$exe" 2>&1 || true; pause;;
     "VM: install app")  read -r -p "VM name: " vmn; read -r -p "setup.exe path: " exe; neos-winevm install "$vmn" "$exe" 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+tools_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Tools" "NeoOS utility toolkit" 22 72 12 \
+    "pkg manager"  "pkg update/upgrade/install/search (Termux-style)" \
+    "pkg self-update" "Update NeoOS's own tools/scripts" \
+    "neos-update"  "Plan-first system updater" \
+    "neos-distro"  "Install other distros as proot containers" \
+    "neos-backup"  "Back up configs + installed packages" \
+    "neos-fetch"   "System info banner" \
+    "neos-ports"   "List listening services and owning packages" \
+    "neos-where"   "Find which package provides a command/file" \
+    "neos-serve"   "Quick HTTP file sharing server" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "pkg manager")   read -r -p "pkg command (e.g. update|install vim): " a; pkg $a 2>&1 || true; pause;;
+    "pkg self-update") pkg self-update 2>&1 || true; pause;;
+    "neos-update")   neos-update 2>&1 || true; pause;;
+    "neos-distro")   read -r -p "neos-distro command (e.g. list|available|install debian): " a; neos-distro $a 2>&1 || true; pause;;
+    "neos-backup")   neos-backup 2>&1 || true; pause;;
+    "neos-fetch")    neos-fetch; pause;;
+    "neos-ports")    neos-ports 2>&1 || true; pause;;
+    "neos-where")    read -r -p "command or file (e.g. vim): " a; neos-where "$a" 2>&1 || true; pause;;
+    "neos-serve")    read -r -p "directory to share (default .): " d; neos-serve "${d:-.}" 2>&1 || true;;
     *) return 0;;
   esac
 }

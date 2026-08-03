@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# neos-where — find which package provides a command or file.
+#
+#   neos-where vim          which package installs the `vim` command
+#   neos-where /bin/bash    which package owns this file
+#   neos-where --missing vim   show the install command even if not installed
+#   neos-where --src vim    also search apt source packages (apt-file style)
+
+set -euo pipefail
+
+need_root() {
+  if [[ $EUID -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      exec sudo "$0" "$@"
+    fi
+  fi
+}
+
+search_src=0
+args=()
+for a in "$@"; do
+  case "$a" in
+    --src|-s) search_src=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+target="${args[0]:-}"
+
+[[ -n "$target" ]] || { sed -n '2,7p' "$0" | sed 's/^#   /  /; s/^#//'; exit 2; }
+
+log() { printf '\033[1;36m[neos-where]\033[0m %s\n' "$*"; }
+
+# 1. If it's an installed file/command, dpkg -S is authoritative.
+if [[ -e "$target" || "$(command -v "${target#*/}" 2>/dev/null)" ]]; then
+  path=""
+  if [[ -e "$target" ]]; then path="$target"
+  elif [[ "${target#*/}" != "$target" ]]; then path="$target"
+  else path=$(command -v "$target" 2>/dev/null || echo "/usr/bin/$target"); fi
+  if [[ -e "$path" ]]; then
+    log "file: $path"
+    dpkg -S "$path" 2>/dev/null && exit 0 || true
+  fi
+fi
+
+# 2. Search apt contents (remote). Needs apt-file data; else use packages.debian.org.
+if command -v apt-file >/dev/null 2>&1; then
+  log "searching apt-file contents..."
+  apt-file search "$target" 2>/dev/null | head -20 && exit 0
+fi
+
+# 3. Fallback: recommend the command.
+log "'$target' not found in installed files. Install it with:"
+echo "  pkg install $target"
+if command -v apt-cache >/dev/null 2>&1; then
+  log "apt candidates for '$target':"
+  apt-cache search "^${target//[-+]/[-+]}\$" 2>/dev/null | head -5 || true
+  apt-cache search "$target" 2>/dev/null | head -8 | sed 's/^/  /' || true
+fi

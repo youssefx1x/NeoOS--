@@ -8,11 +8,13 @@ no custom kernel or fork of the archive; NeoOS layers a curated terminal
 experience on top of the standard Debian archive.
 
 ```
- +---------------------------------------------------------------+
- |  NeoOS layer  (overlay/ + neolibs/)                          |
- |   neos-menu · neos-drivers · neos-wayland · neos-wine        |
- |   neos-winevm · neos-winetricks · neolibs · motd · os-release |
- +---------------------------------------------------------------+
+  +---------------------------------------------------------------+
+  |  NeoOS layer  (overlay/ + neolibs/)                          |
+  |   neos-menu · neos-drivers · neos-wayland · neos-wine        |
+  |   neos-winevm · neos-winetricks · pkg · neos-distro          |
+  |   neos-fetch · neos-serve · neos-backup · neos-update        |
+  |   neos-ports · neos-where · neolibs · motd · os-release      |
+  +---------------------------------------------------------------+
  |  Debian 13 (trixie) archive                                    |
  |  main + contrib + non-free-firmware                            |
  +---------------------------------------------------------------+
@@ -39,7 +41,7 @@ experience on top of the standard Debian archive.
 
 ### Start menu — `neos-menu` (`overlay/usr/bin/neos-menu`)
 
-A whiptail/dialog TUI with five sections:
+A whiptail/dialog TUI with six sections:
 
 - **Code** — installs updated code apps: toolchains, editors, languages,
   debuggers (drives `apt`).
@@ -47,7 +49,11 @@ A whiptail/dialog TUI with five sections:
   IRC messaging.
 - **Drivers** — launches `neos-drivers`.
 - **Wayland** — starts/installs the Wayland stack and Winetricks.
+- **Wine** — `neos-wine`/`neos-winevm` (Windows apps + Win10 VMs).
 - **NeoLIBs** — thin wrapper around `neolibs`.
+- **Tools** — pkg manager, `neos-distro`, `neos-update`,
+  `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
+  `neos-backup`, `pkg self-update`.
 - **System** — apt update/upgrade, package management, sources editor,
   shutdown/reboot.
 
@@ -86,6 +92,32 @@ It re-executes after each action (`main_menu` recursion) until *Quit*.
 - `neos-winetricks` — thin compat wrapper delegating to `neos-wine`
   (`install` -> `neos-wine --install`, `config` -> `neos-wine --setup`,
   `run -- cmd` -> `neos-wine cmd`).
+
+### Package manager & utilities — `pkg`, `neos-*` (`overlay/usr/bin/`)
+
+- `pkg` — Termux-style wrapper over apt/dpkg: `update`/`upgrade`/
+  `install`/`remove`/`purge`/`search`/`show`/`files`/`depends`/`list`/
+  `autoremove`/`clean`, plus `pkg self-update` which pulls the NeoOS tool
+  scripts from `NEOS_REPO` (default `/opt/neos`) and re-applies the
+  overlay. Uses sudo transparently when not root.
+- `neos-distro` — installs Debian/Ubuntu/Alpine/Arch (or any
+  tarball/URL) as isolated **proot containers** under `~/.neos-distro`.
+  Debootstrap for deb-based distros, direct tarball for Alpine/Arch.
+  Subcommands: `list`, `install`, `run`, `exec`, `info`, `remove`,
+  `available`, `doctor`.
+- `neos-update` — plan-first updater; lists upgradable packages,
+  applies with `--apply`, optionally cleans cache.
+- `neos-fetch` — neofetch-style banner with the NeoOS ASCII logo
+  (replaces `neofetch`, which left trixie).
+- `neos-ports` — list listening TCP/UDP sockets with pid/process and
+  the owning package (`--pkg`) or JSON (`--json`).
+- `neos-where` — which installed package owns a command or file
+  (`dpkg -S`, `apt-file`, `apt-cache` fallback).
+- `neos-serve` — quick HTTP file listing server; `--upload` adds POST
+  file reception (`curl -F file=@x http://host:port/`).
+- `neos-backup` — tar.gz snapshot of apt/package state, `/etc` configs,
+  NeoLIBs store and Wine VM / distro container listings; `--restore`
+  re-installs the saved package list.
 
 ### NeoLIBs — `neolibs/neolibs` (installed to `/usr/bin/neolibs`)
 

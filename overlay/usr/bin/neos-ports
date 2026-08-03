@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# neos-ports — list listening TCP/UDP ports with their owning process
+# and (optionally) which package installed them.
+#
+#   neos-ports            TCP+UDP listeners
+#   neos-ports tcp        TCP only
+#   neos-ports udp        UDP only
+#   neos-ports --pkg      also show the owning package per listener
+#   neos-ports --json     machine-readable output
+
+set -euo pipefail
+
+proto=""
+with_pkg=0
+json=0
+for a in "$@"; do
+  case "$a" in
+    tcp|udp) proto="$a" ;;
+    --pkg) with_pkg=1 ;;
+    --json) json=1 ;;
+    *) echo "usage: neos-ports [tcp|udp] [--pkg] [--json]" >&2; exit 2 ;;
+  esac
+done
+
+have_ss=1; command -v ss >/dev/null 2>&1 || have_ss=0
+have_lsof=1; command -v lsof >/dev/null 2>&1 || have_lsof=0
+
+log() { printf '\033[1;36m[neos-ports]\033[0m %s\n' "$*"; }
+
+pkg_of() {
+  local pid="$1"
+  local exe
+  exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || echo "")
+  [[ -n "$exe" ]] || return 0
+  dpkg -S "$exe" 2>/dev/null | cut -d: -f1 || true
+}
+
+if [[ $have_ss -eq 1 ]]; then
+  filt=""
+  [[ "$proto" == "tcp" ]] && filt="-t"
+  [[ "$proto" == "udp" ]] && filt="-u"
+  if [[ $json -eq 1 ]]; then
+    ss -l -H $filt 2>/dev/null | awk '
+      NR>0 {
+        local="";
+        for (i=1; i<=NF; i++) if ($i ~ /:[0-9]+$/ && $i !~ /^\*/) { local=$i; break }
+        if (local=="") next
+        n=split(local,a,":"); port=a[n];
+        m=split($1,p," "); proto=p[1];
+        print "{\"proto\":\"" proto "\",\"port\":" port ",\"state\":\"" $2 "\",\"local\":\"" local "\"}"}'
+    exit 0
+  fi
+  printf '%-8s %-8s %-12s %s\n' "PROTO" "STATE" "LOCAL" "PROCESS"
+  ss -l -H -p $filt 2>/dev/null | while read -r line; do
+    [[ "$line" =~ ^nl[[:space:]] ]] && continue
+    local_parts=$(echo "$line" | awk '{print $4}')
+    proto_f=$(echo "$line" | awk '{print $1}')
+    state=$(echo "$line" | awk '{print $2}')
+    proc=$(echo "$line" | grep -oP 'users:\(\("\K[^"]+' | cut -c1-40) || proc=""
+    printf '%-8s %-8s %-12s %s\n' "$proto_f" "$state" "$local_parts" "${proc:-—}"
+  done
+elif [[ $have_lsof -eq 1 ]]; then
+  lsof -i${proto:+-UDP} -P -n 2>/dev/null | awk 'NR==1 || $8=="LISTEN"'
+else
+  log "Neither ss nor lsof is installed. Install with: pkg install iproute2 lsof"
+  exit 1
+fi
+
+if [[ $with_pkg -eq 1 && $have_ss -eq 1 ]]; then
+  echo
+  log "owning packages per listener pid:"
+  ss -l -H $filt 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u | while read -r pid; do
+    pkg=$(pkg_of "$pid")
+    [[ -n "$pkg" ]] && printf '  pid %-8s %s\n' "$pid" "$pkg"
+  done
+fi

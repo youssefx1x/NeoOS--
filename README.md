@@ -16,7 +16,9 @@ library.
       │  Internet    browsers, messaging, network utils │
       │  Drivers     hardware / driver installer        │
       │  Wayland     Weston + XWayland session          │
+      │  Wine        Windows apps (neos-wine + VM)      │
       │  NeoLIBs     multi-version library manager      │
+      │  Tools       pkg, distro installer, backup, ... │
       │  System      apt, packages, shell, power        │
       └─────────────────────────────────────────────────┘
 ```
@@ -37,6 +39,18 @@ library.
 - **Driver installer** (`neos-drivers`) — hardware detection (lspci/lsusb),
   enables `non-free-firmware`, installs GPU (Mesa/Vulkan/AMD/NVIDIA),
   WiFi, Bluetooth, audio, printer and generic firmware.
+- **pkg** (`pkg`) — Termux-style package manager wrapper over apt/dpkg:
+  `pkg update`, `pkg upgrade`, `pkg install`, `pkg search`, `pkg list`,
+  `pkg files`, `pkg depends`, `pkg autoremove`, `pkg clean` and
+  `pkg self-update` (updates NeoOS's own tools from a git checkout).
+- **Distro installer** (`neos-distro`) — install Debian, Ubuntu, Alpine,
+  Arch or any rootfs tarball/URL as isolated **proot containers**
+  (no root, no reboot) for testing distros side-by-side.
+- **Utility toolkit** — `neos-update` (plan-first updater),
+  `neos-fetch` (neofetch-style banner), `neos-ports` (listening
+  services + owning package), `neos-where` (which package owns a
+  command/file), `neos-serve` (HTTP file share with upload),
+  `neos-backup` (configs + package-list backup/restore).
 - **Wayland support** — `neos-wayland` starts a Weston compositor with
   XWayland; Wayland apps (foot, wmenu) are one menu click away.
 - **Winetricks / Wine** — `neos-winetricks` bootstraps Wine, initializes a
@@ -76,6 +90,14 @@ overlay/             files injected into the rootfs
   usr/bin/neos-wine      run Windows console/terminal .exe apps
   usr/bin/neos-winevm    create/run isolated Windows-10 Wine VMs
   usr/bin/neos-winetricks  Wine/Winetricks bootstrap
+  usr/bin/pkg            Termux-style package manager
+  usr/bin/neos-distro    proot distro installer (Debian/Ubuntu/Alpine/Arch)
+  usr/bin/neos-update    plan-first system updater
+  usr/bin/neos-fetch     system info banner
+  usr/bin/neos-ports     listening services + owning package
+  usr/bin/neos-where     which package owns a command/file
+  usr/bin/neos-serve     HTTP file share (with upload)
+  usr/bin/neos-backup    config + package-list backup/restore
 neolibs/             the NeoLIBs tool (usr/bin/neolibs)
 proot-distro/        proot-distro plugin for Termux
 tests/               test suites (tests/test-neolibs.sh)
@@ -129,6 +151,77 @@ neos-winevm remove win10
 
 VMs live under `~/.winevm/<name>/`, report as `Windows 10`, and keep each
 installed application isolated. The base system stays untouched.
+
+## Package manager (`pkg`)
+
+`pkg` is a friendly, Termux-style wrapper around apt/dpkg:
+
+```sh
+pkg update                        # refresh package lists
+pkg upgrade                       # upgrade all packages
+pkg install build-essential git   # install (auto -y)
+pkg search editor                 # search packages
+pkg show vim                      # package details
+pkg files vim                     # files owned by an installed package
+pkg depends vim                   # dependency tree
+pkg list                          # list installed packages
+pkg autoremove                    # drop unneeded packages
+pkg clean                         # clean the apt cache
+pkg self-update                   # update NeoOS's own tools/scripts
+```
+
+`pkg self-update` pulls the NeoOS tool scripts from a git checkout
+(`NEOS_REPO`, default `/opt/neos`) and re-applies the overlay; it clones
+from `NEOS_GH` on first use. A plan-first updater is also available:
+`neos-update` shows what would change and applies with `neos-update --apply`.
+
+## Distro installer (`neos-distro`)
+
+Install other Linux distributions as **proot containers** — no root, no
+reboot, run them side by side:
+
+```sh
+neos-distro list                     # installed containers
+neos-distro install debian          # Debian trixie (debootstrap)
+neos-distro install ubuntu          # Ubuntu noble (debootstrap)
+neos-distro install alpine          # Alpine mini-rootfs
+neos-distro install arch            # Arch Linux bootstrap
+neos-distro install /path/rootfs.tar.xz --name mydistro   # any tarball
+neos-distro install https://.../rootfs.tar.xz --name foo  # any URL
+neos-distro run debian              # log into the container
+neos-distro run debian -- cat /etc/os-release
+neos-distro exec debian -- uname -a
+neos-distro info debian             # size, os, file count
+neos-distro remove debian
+neos-distro available               # what we can install
+neos-distro doctor                  # check prerequisites
+```
+
+Containers live under `~/.neos-distro/<name>` (override with
+`NEOS_DISTRO_ROOT`). They are real root filesystems: install packages
+inside them with their own `apt`/`apk`/`pacman`.
+
+## Utility toolkit
+
+```sh
+neos-fetch            # neofetch-style banner with the NeoOS logo
+neos-fetch --min      # one-line summary
+neos-ports            # listening TCP/UDP + owning process
+neos-ports --pkg      # also show the owning package per pid
+neos-ports --json     # machine-readable
+neos-where vim        # which package provides the `vim` command
+neos-where /bin/bash  # which package owns this file
+neos-serve [dir]      # share a directory over HTTP on :8000
+neos-serve --upload   # ... with file upload support
+neos-backup           # back up configs + package list to a tarball
+neos-backup --list f  # inspect a backup
+neos-backup --restore f  # restore package list + configs
+```
+
+`neos-serve` prints a LAN URL to share files; `--upload` adds
+`curl -F file=@x.tar.gz http://<host>:<port>/` transfer. `neos-backup`
+saves apt/package state, `/etc` configs and NeoLIBs/Wine VM listings, and
+can restore the installed package list on a fresh install.
 
 ## Termux / proot-distro
 

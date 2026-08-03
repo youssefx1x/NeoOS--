@@ -1,0 +1,272 @@
+#!/usr/bin/env bash
+# neos-distro — install and run other Linux distributions inside NeoOS
+# as isolated proot containers (no root, no reboot). Great for testing
+# multiple distros side by side.
+#
+#   neos-distro list                          list installed containers
+#   neos-distro install debian [--name x]     install a distro
+#   neos-distro install <file.tar.xz> --name x  install from a tarball
+#   neos-distro install <url> --name x        install from a URL
+#   neos-distro run <name> [-- cmd]           log into a container
+#   neos-distro exec <name> -- <cmd>          run one command inside
+#   neos-distro remove <name>                 delete a container
+#   neos-distro info <name>                   show container info
+#   neos-distro available                     list distros we can install
+#   neos-distro doctor                        check proot/prerequisites
+#
+# Containers live under $NEOS_DISTRO_ROOT (default ~/.neos-distro).
+# Known distros are bootstrapped with debootstrap or from official
+# mini-rootfs tarballs; arbitrary tarballs/URLs are supported too.
+
+set -euo pipefail
+
+NEOS_DISTRO_ROOT="${NEOS_DISTRO_ROOT:-$HOME/.neos-distro}"
+DISTRO_ARCH="$(uname -m)"
+# Debian/Ubuntu use amd64/arm64 naming; map from uname output.
+DEB_ARCH="$DISTRO_ARCH"
+case "$DEB_ARCH" in
+  x86_64)  DEB_ARCH=amd64 ;;
+  aarch64) DEB_ARCH=arm64 ;;
+  i686|i386) DEB_ARCH=i386 ;;
+esac
+ALPINE_RELEASE="${ALPINE_RELEASE:-3.20}"
+UBUNTU_SUITE="${UBUNTU_SUITE:-noble}"
+DEBIAN_SUITE="${DEBIAN_SUITE:-trixie}"
+ARCH_BOOTSTRAP_URL="${ARCH_BOOTSTRAP_URL:-https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst}"
+
+log() { printf '\033[1;36m[neos-distro]\033[0m %s\n' "$*"; }
+info(){ printf '\033[1;32m[neos-distro]\033[0m %s\n' "$*"; }
+warn(){ printf '\033[1;33m[neos-distro]\033[0m %s\n' "$*"; }
+err() { printf '\033[1;31m[neos-distro]\033[0m %s\n' "$*" >&2; }
+
+require_cmds() {
+  local missing=()
+  for c in "$@"; do command -v "$c" >/dev/null 2>&1 || missing+=("$c"); done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    err "missing required tools: ${missing[*]}"
+    err "install them with: pkg install ${missing[*]}"
+    exit 1
+  fi
+}
+
+proot_cmd() {
+  local root="$1"; shift
+  # Bind /proc,/sys,/dev and a resolv.conf so networking works inside.
+  proot -R "$root" \
+    -b /proc:/proc -b /sys:/sys -b /dev:/dev \
+    -b "$PWD":/host-cwd \
+    -w /host-cwd \
+    env HOME=/root TERM="$TERM" PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    "$@"
+}
+
+setup_resolv() {
+  local root="$1"
+  mkdir -p "$root/etc"
+  [[ -f "$root/etc/resolv.conf" ]] || cat > "$root/etc/resolv.conf" <<'EOF'
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+EOF
+}
+
+install_debian() {
+  require_cmds debootstrap
+  local name="$1" suite="$2"
+  mkdir -p "$NEOS_DISTRO_ROOT"
+  log "Bootstraping Debian ($suite) into $name ..."
+  debootstrap --variant=minbase --arch="$DEB_ARCH" "$suite" \
+    "$NEOS_DISTRO_ROOT/$name" http://deb.debian.org/debian
+  setup_resolv "$NEOS_DISTRO_ROOT/$name"
+  info "Debian $suite installed as '$name'. Run: neos-distro run $name"
+}
+
+install_ubuntu() {
+  require_cmds debootstrap
+  local name="$1" suite="$2"
+  mkdir -p "$NEOS_DISTRO_ROOT"
+  log "Bootstraping Ubuntu ($suite) into $name ..."
+  debootstrap --variant=minbase --arch="$DEB_ARCH" "$suite" \
+    "$NEOS_DISTRO_ROOT/$name" http://archive.ubuntu.com/ubuntu
+  setup_resolv "$NEOS_DISTRO_ROOT/$name"
+  info "Ubuntu $suite installed as '$name'. Run: neos-distro run $name"
+}
+
+install_alpine() {
+  require_cmds wget tar
+  local name="$1"
+  local arch
+  case "$DISTRO_ARCH" in
+    x86_64)  arch=x86_64 ;;
+    aarch64) arch=aarch64 ;;
+    *) err "Alpine mini-rootfs not supported for arch $DISTRO_ARCH"; exit 1 ;;
+  esac
+  local base="https://dl-cdn.alpinelinux.org/alpine/v$ALPINE_RELEASE/releases/$arch"
+  local tarball
+  tarball=$(wget -q -O - "$base/" | grep -o "alpine-minirootfs-[0-9.]*-$arch.tar.gz" | sort -V | tail -1)
+  [[ -n "$tarball" ]] || { err "could not resolve Alpine mini-rootfs URL"; exit 1; }
+  mkdir -p "$NEOS_DISTRO_ROOT/$name"
+  log "Downloading $base/$tarball ..."
+  wget -q -O - "$base/$tarball" | tar -xz -C "$NEOS_DISTRO_ROOT/$name"
+  setup_resolv "$NEOS_DISTRO_ROOT/$name"
+  info "Alpine installed as '$name'. Run: neos-distro run $name"
+}
+
+install_arch() {
+  require_cmds wget tar proot
+  local name="$1"
+  local tmp; tmp=$(mktemp -d)
+  mkdir -p "$NEOS_DISTRO_ROOT/$name"
+  log "Downloading Arch bootstrap ..."
+  wget -q -O "$tmp/bootstrap.tar.zst" "$ARCH_BOOTSTRAP_URL" || {
+    err "Arch bootstrap download failed"; rm -rf "$tmp"; exit 1
+  }
+  tar --use-compress-program=unzstd -xf "$tmp/bootstrap.tar.zst" -C "$tmp" || \
+    tar -xf "$tmp/bootstrap.tar.zst" -C "$tmp" 2>/dev/null || {
+    err "extracting Arch bootstrap failed (needs unzstd)"; rm -rf "$tmp"; exit 1
+  }
+  # The bootstrap tarball contains a single root.x86_64/ dir.
+  cp -a "$tmp"/root.x86_64/. "$NEOS_DISTRO_ROOT/$name/"
+  setup_resolv "$NEOS_DISTRO_ROOT/$name"
+  rm -rf "$tmp"
+  info "Arch installed as '$name'. Run: neos-distro run $name"
+}
+
+install_tarball() {
+  require_cmds tar
+  local src="$1" name="$2"
+  mkdir -p "$NEOS_DISTRO_ROOT/$name"
+  if [[ "$src" =~ ^https?:// ]]; then
+    require_cmds wget
+    log "Downloading $src ..."
+    wget -q -O - "$src" | tar -x -C "$NEOS_DISTRO_ROOT/$name"
+  else
+    [[ -f "$src" ]] || { err "no such file: $src"; exit 1; }
+    log "Extracting $src ..."
+    tar -xf "$src" -C "$NEOS_DISTRO_ROOT/$name"
+  fi
+  setup_resolv "$NEOS_DISTRO_ROOT/$name"
+  info "Installed from '$src' as '$name'. Run: neos-distro run $name"
+}
+
+cmd_install() {
+  local spec="${1:-}" name="" opts=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name) name="$2"; shift 2 ;;
+      *) opts+=("$1"); shift ;;
+    esac
+  done
+  [[ -n "$spec" ]] || { err "usage: neos-distro install <distro|tarball|url> [--name name]"; exit 2; }
+  local dflt
+  case "$spec" in
+    debian|ubuntu|alpine|arch) dflt="$spec" ;;
+    *) dflt=$(basename "$spec"); dflt="${dflt%%.*}" ;;
+  esac
+  name="${name:-$dflt}"
+  [[ -d "$NEOS_DISTRO_ROOT/$name" ]] && { err "'$name' already exists"; exit 1; }
+  case "$spec" in
+    debian) install_debian "$name" "$DEBIAN_SUITE" ;;
+    ubuntu) install_ubuntu "$name" "$UBUNTU_SUITE" ;;
+    alpine) install_alpine "$name" ;;
+    arch)   install_arch "$name" ;;
+    *)      install_tarball "$spec" "$name" ;;
+  esac
+}
+
+cmd_run() {
+  [[ -n "${1:-}" ]] || { err "usage: neos-distro run <name> [-- cmd]"; exit 2; }
+  local name="$1"; shift
+  local root="$NEOS_DISTRO_ROOT/$name"
+  [[ -d "$root" ]] || { err "no such container: $name"; exit 1; }
+  [[ "${1:-}" == "--" ]] && shift
+  if [[ $# -gt 0 ]]; then
+    proot_cmd "$root" /bin/sh -c "$*"
+  else
+    proot_cmd "$root" /bin/sh
+  fi
+}
+
+cmd_exec() {
+  [[ $# -ge 3 ]] || { err "usage: neos-distro exec <name> -- <cmd...>"; exit 2; }
+  local name="$1"; shift; shift
+  local root="$NEOS_DISTRO_ROOT/$name"
+  [[ -d "$root" ]] || { err "no such container: $name"; exit 1; }
+  proot_cmd "$root" "$@"
+}
+
+cmd_list() {
+  if ! ls -d "$NEOS_DISTRO_ROOT"/*/ >/dev/null 2>&1; then
+    info "no containers installed yet. Try: neos-distro install debian"
+    return 0
+  fi
+  info "installed containers ($NEOS_DISTRO_ROOT):"
+  for d in "$NEOS_DISTRO_ROOT"/*/; do
+    local n; n=$(basename "$d")
+    local id=""
+    if [[ -f "$d/etc/os-release" ]]; then
+      id=$(grep '^ID=' "$d/etc/os-release" | cut -d= -f2 | tr -d '"')
+    fi
+    printf '  %-16s %s\n' "$n" "${id:-unknown}"
+  done
+}
+
+cmd_info() {
+  [[ -n "${1:-}" ]] || { err "usage: neos-distro info <name>"; exit 2; }
+  local d="$NEOS_DISTRO_ROOT/$1"
+  [[ -d "$d" ]] || { err "no such container: $1"; exit 1; }
+  echo "name:    $1"
+  echo "root:    $d"
+  echo "arch:    $(uname -m)"
+  du -sh "$d" 2>/dev/null | awk '{print "size:    "$1}'
+  if [[ -f "$d/etc/os-release" ]]; then
+    echo "os:      $(grep '^PRETTY_NAME=' "$d/etc/os-release" | cut -d= -f2 | tr -d '"')"
+  fi
+  echo "files:   $(find "$d" -type f 2>/dev/null | wc -l)"
+}
+
+cmd_remove() {
+  [[ -n "${1:-}" ]] || { err "usage: neos-distro remove <name>"; exit 2; }
+  local d="$NEOS_DISTRO_ROOT/$1"
+  [[ -d "$d" ]] || { err "no such container: $1"; exit 1; }
+  warn "removing container '$1' ($d)"
+  rm -rf "$d"
+  info "removed."
+}
+
+cmd_available() {
+  info "installable distros (neos-distro install <name>):"
+  printf '  %-10s %s\n' debian "Debian $DEBIAN_SUITE via debootstrap"
+  printf '  %-10s %s\n' ubuntu "Ubuntu $UBUNTU_SUITE via debootstrap"
+  printf '  %-10s %s\n' alpine "Alpine $ALPINE_RELEASE mini-rootfs"
+  printf '  %-10s %s\n' arch "Arch Linux bootstrap"
+  echo
+  info "or install any rootfs tarball/URL: neos-distro install <file.tar.xz> --name x"
+}
+
+cmd_doctor() {
+  echo "-- neos-distro doctor --"
+  command -v proot >/dev/null && echo "  proot:      OK ($(command -v proot))" || echo "  proot:      MISSING"
+  command -v debootstrap >/dev/null && echo "  debootstrap: OK" || echo "  debootstrap: MISSING (needed for debian/ubuntu)"
+  command -v wget >/dev/null && echo "  wget:       OK" || echo "  wget:       MISSING"
+  command -v tar >/dev/null && echo "  tar:        OK" || echo "  tar:        MISSING"
+  echo "  arch:       $(uname -m)"
+  echo "  root:       $NEOS_DISTRO_ROOT"
+  echo "  containers: $(ls -d "$NEOS_DISTRO_ROOT"/*/ 2>/dev/null | wc -l)"
+}
+
+cmd="${1:-help}"; shift || true
+mkdir -p "$NEOS_DISTRO_ROOT"
+case "$cmd" in
+  list|ls)     cmd_list ;;
+  install|add) cmd_install "$@" ;;
+  run)         cmd_run "$@" ;;
+  exec)        cmd_exec "$@" ;;
+  info)        cmd_info "$@" ;;
+  remove|rm)   cmd_remove "$@" ;;
+  available)   cmd_available ;;
+  doctor)      cmd_doctor ;;
+  help|-h|--help|"")
+    sed -n '2,20p' "$0" | sed 's/^#   /  /; s/^#//'
+    ;;
+  *) err "unknown command: $cmd"; exit 2 ;;
+esac
