@@ -173,14 +173,16 @@ wine_menu() {
 
 monitor_menu() {
   local choice
-  choice=$(BOX "NeoOS - Monitor" "System health & disk" 18 70 8 \
+  choice=$(BOX "NeoOS - Monitor" "System health & disk" 20 70 7 \
     "Live monitor"   "neos-monitor (CPU, memory, top processes)" \
+    "Health check"   "neos-health — verify the whole system" \
     "Disk usage"     "neos-disk top (largest directories)" \
-    "Clean system"   "neos-clean (apt cache, logs, temp — dry run)" \
+    "Clean system"   "neos-clean (cache/log/temp cleaner, dry-run first)" \
     "Battery"        "neos-battery status" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "Live monitor") neos-monitor 2>&1 || true; pause;;
+    "Health check") neos-health 2>&1 || true; pause;;
     "Disk usage")   neos-disk top 2>&1 || true; pause;;
     "Clean system") neos-clean 2>&1 || true; pause;;
     "Battery")      neos-battery 2>&1 || true; pause;;

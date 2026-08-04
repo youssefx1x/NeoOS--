@@ -20,7 +20,7 @@ is repaired, and the version is bumped to 2.0 throughout
   |   neos-drivers · neos-installer · neos-users · neos-guest     |
   |   neos-distro · neos-wayland · neos-wine · neos-winevm        |
   |   neos-winetricks · neolibs · neos-monitor · neos-disk         |
-  |   neos-clean · neos-battery · neos-net · neos-ip · neos-speedtest |
+  |   neos-clean · neos-battery · neos-health · neos-net · neos-ip · neos-speedtest |
   |   neos-todo · neos-notes · neos-timer · neos-calc · neos-fortune |
   |   neos-new · neos-lang · motd · os-release                    |
   |   calamares branding                                          |

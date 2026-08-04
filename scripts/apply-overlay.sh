@@ -60,6 +60,7 @@ cat > "$ROOTFS/etc/motd" <<'EOF'
 
   Start menu ........ neos-menu
   Help .............. neos-help
+  Health ............ neos-health
   Drivers ........... neos-drivers
   Install to disk ... neos-installer
   Users ............. neos-users

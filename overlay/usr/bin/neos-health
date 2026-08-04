@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+# neos-health — NeoOS system health check.
+# Verifies connectivity, APT status, NeoLIBs, Wayland, Wine,
+# missing dependencies, disk space and system integrity, then prints
+# a color report + remediation hints.
+#   neos-health              run all checks
+#   neos-health --quiet      one-line summary only
+#   neos-health <name>       run a single check (connectivity, apt,
+#                           neolibs, wayland, wine, deps, disk, integrity)
+#   neos-health --fix        attempt safe fixes (apt --fix-broken,
+#                           apt-get clean) — best effort
+
+set -euo pipefail
+
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+RED=$'\033[31m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+DIM=$'\033[2m'
+RESET=$'\033[0m'
+
+declare -ai RESULTS=()   # 0=pass, 1=warn, 2=fail
+SUMMARY_LINES=()
+
+record() {          # record <code> <name> <message>
+  RESULTS+=("$1")
+  local mark
+  case "$1" in
+    0) mark="$GREEN[PASS]$RESET" ;;
+    1) mark="$YELLOW[WARN]$RESET" ;;
+    2) mark="$RED[FAIL]$RESET" ;;
+  esac
+  SUMMARY_LINES+=("$mark $BOLD$2$RESET $3")
+}
+
+# --- individual checks ---
+
+check_connectivity() {
+  local rc=0
+  if command -v curl >/dev/null 2>&1; then
+    if curl -fsS --max-time 6 -o /dev/null https://deb.debian.org 2>/dev/null; then
+      record 0 connectivity "reachable (deb.debian.org)"
+    else
+      rc=2; record 2 connectivity "cannot reach the Internet (no curl/ping response)"
+    fi
+  elif command -v ping >/dev/null 2>&1; then
+    if ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then
+      record 0 connectivity "reachable (ping 1.1.1.1)"
+    else
+      rc=2; record 2 connectivity "cannot reach the Internet (ping failed)"
+    fi
+  else
+    rc=1; record 1 connectivity "no curl or ping to test with"
+  fi
+  return $rc
+}
+
+check_apt() {
+  local rc=0
+  local issues=()
+  # broken packages?
+  if dpkg --audit 2>/dev/null | grep -q .; then
+    rc=2
+    record 2 apt "broken packages found: $(dpkg --audit 2>/dev/null | tr '\n' ' ')"
+  else
+    record 0 apt "no broken packages"
+  fi
+  # sources present?
+  if find /etc/apt -maxdepth 2 \( -name 'sources.list' -o -name '*.list' -o -name '*.sources' \) 2>/dev/null | grep -q .; then
+    :
+  else
+    rc=2; record 2 apt "no APT sources configured"
+  fi
+  # package lists fresh enough? (older than 7 days = warn)
+  local age
+  age=$(stat -c %Y /var/cache/apt/pkgcache.bin 2>/dev/null || echo 0)
+  if (( age > 0 )); then
+    local days=$(( ( $(date +%s) - age ) / 86400 ))
+    if (( days > 7 )); then
+      record 1 apt "package lists are ${days}d old — run 'apt update'"
+    else
+      record 0 apt "package lists recent (${days}d)"
+    fi
+  fi
+  return $rc
+}
+
+check_neolibs() {
+  if command -v neolibs >/dev/null 2>&1; then
+    local n
+    n=$(neolibs list 2>/dev/null | grep -c '^ ' || echo 0)
+    record 0 neolibs "installed and active ($(neolibs list 2>/dev/null | grep -c '^ ' || echo 0) libraries)"
+  else
+    record 2 neolibs "not installed (or not on PATH)"
+  fi
+  return 0
+}
+
+check_wayland() {
+  local rc=0
+  if command -v weston >/dev/null 2>&1; then
+    record 0 wayland "weston available ($(weston --version 2>&1 | head -1))"
+  else
+    rc=1; record 1 wayland "weston not installed — run 'neos-wayland' or 'apt install weston'"
+  fi
+  if [[ -e /dev/dri/card0 ]]; then
+    record 0 wayland "/dev/dri/card0 present (GPU accel path)"
+  else
+    record 1 wayland "no /dev/dri/card0 (software rendering only)"
+  fi
+  return $rc
+}
+
+check_wine() {
+  local rc=0
+  local ver=""
+  if command -v wine64 >/dev/null 2>&1; then
+    ver=$(wine64 --version 2>/dev/null | head -1)
+    record 0 wine "installed ($ver)"
+  elif command -v wine >/dev/null 2>&1; then
+    ver=$(wine --version 2>/dev/null | head -1)
+    record 0 wine "installed ($ver)"
+  else
+    rc=1; record 1 wine "not installed — run 'neos-wine --install'"
+  fi
+  return $rc
+}
+
+check_deps() {
+  local rc=0
+  local missing=()
+  for bin in git curl wget bash apt-get; do
+    if ! command -v "$bin" >/dev/null 2>&1; then
+      missing+=("$bin")
+    fi
+  done
+  if (( ${#missing[@]} == 0 )); then
+    record 0 deps "all core tools present (git, curl, wget, bash, apt-get)"
+  else
+    rc=2
+    record 2 deps "missing: ${missing[*]}"
+    SUMMARY_LINES+=("    install with: $BOLD sudo apt install ${missing[*]}"$RESET)
+  fi
+  return $rc
+}
+
+check_disk() {
+  local rc=0
+  local free_m total_m pct
+  free_kb=$(df -k / 2>/dev/null | awk 'NR==2{print $4}')
+  total_kb=$(df -k / 2>/dev/null | awk 'NR==2{print $2}')
+  pct=$(df -k / 2>/dev/null | awk 'NR==2{printf "%d", $5}' | tr -d '%')
+  free_m=$((free_kb/1024))
+  total_m=$((total_kb/1024))
+  if (( pct >= 95 )); then
+    rc=2; record 2 disk "critically low: ${pct}% used (${free_m} MiB free of ${total_m} MiB)"
+  elif (( pct >= 85 )); then
+    rc=1; record 1 disk "${pct}% used (${free_m} MiB free of ${total_m} MiB) — consider cleaning"
+  else
+    record 0 disk "${pct}% used (${free_m} MiB free of ${total_m} MiB)"
+  fi
+  return $rc
+}
+
+check_integrity() {
+  local rc=0
+  if command -v debsums >/dev/null 2>&1; then
+    local bad
+    bad=$(debsums -c 2>/dev/null | wc -l)
+    if (( bad == 0 )); then
+      record 0 integrity "all package checksums verified (debsums)"
+    else
+      rc=2; record 2 integrity "${bad} modified/missing package files"
+    fi
+  else
+    rc=1; record 1 integrity "debsums not installed — 'sudo apt install debsums' to verify"
+  fi
+  return $rc
+}
+
+# --- runner ---
+
+ALL_CHECKS=(connectivity apt neolibs wayland wine deps disk integrity)
+
+run_check() {
+  local name="$1"
+  case "$name" in
+    connectivity) check_connectivity ;;
+    apt)          check_apt ;;
+    neolibs)      check_neolibs ;;
+    wayland)      check_wayland ;;
+    wine)         check_wine ;;
+    deps)         check_deps ;;
+    disk)         check_disk ;;
+    integrity)    check_integrity ;;
+  esac
+}
+
+FIX=0
+QUIET=0
+SINGLE=""
+for arg in "$@"; do
+  case "$arg" in
+    --fix) FIX=1 ;;
+    --quiet|-q) QUIET=1 ;;
+    -h|--help)
+      sed -n '2,11p' "$0" | sed 's/^#   /  /; s/^#//'
+      exit 0 ;;
+    *)
+      if [[ -n "$SINGLE" ]]; then
+        echo "neos-health: unknown option '$arg'"; exit 1
+      fi
+      SINGLE="$arg" ;;
+  esac
+done
+
+if [[ -n "$SINGLE" ]]; then
+  run_check "$SINGLE" || true
+  echo "${SUMMARY_LINES[-1]}"
+  exit 0
+fi
+
+for c in "${ALL_CHECKS[@]}"; do run_check "$c" || true; done
+
+if (( FIX )); then
+  echo
+  echo -e "$CYAN$BOLD Attempting safe repairs...$RESET"
+  dpkg --configure -a 2>/dev/null && echo -e "  $GREEN[ok]$RESET dpkg --configure -a" || true
+  apt-get --fix-broken install -y 2>/dev/null && echo -e "  $GREEN[ok]$RESET apt --fix-broken install" || true
+fi
+
+# summary
+pass=$(printf '%s\n' "${RESULTS[@]}" | grep -c '^0$' || true)
+warn=$(printf '%s\n' "${RESULTS[@]}" | grep -c '^1$' || true)
+fail=$(printf '%s\n' "${RESULTS[@]}" | grep -c '^2$' || true)
+total=${#RESULTS[@]}
+
+if (( pass == 0 && warn == 0 && fail == 0 )); then
+  pass=0; warn=0; fail=0
+fi
+
+if (( QUIET )); then
+  echo "neos-health: $pass/$total pass, $warn warn, $fail fail"
+  (( fail > 0 )) && exit 1
+  exit 0
+fi
+
+echo
+echo -e "$BOLD${CYAN}Health report${RESET}"
+echo -e "$DIM$(printf '%.0s─' {1..60})$RESET"
+for line in "${SUMMARY_LINES[@]}"; do echo -e "$line"; done
+echo -e "$DIM$(printf '%.0s─' {1..60})$RESET"
+
+if (( fail > 0 )); then
+  echo -e "  $BOLD$RED$fail critical issue(s)$RESET — see details above."
+elif (( warn > 0 )); then
+  echo -e "  $BOLD$YELLOW$warn warning(s)$RESET — system is usable but could be improved."
+else
+  echo -e "  $BOLD$GREEN$pass/$total checks passed$RESET — all good!"
+fi
+(( fail > 0 )) && exit 1
+exit 0

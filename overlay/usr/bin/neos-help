@@ -39,8 +39,9 @@ EOF
 
   heading "Monitor & health"
   one neos-monitor "Live system monitor (CPU, memory, top processes)"
-  one neos-disk  "Disk usage analyzer"
-  one neos-clean "Free space by cleaning caches, logs, temp (dry-run first)"
+  one neos-health  "System health check (connectivity, apt, disk...)"
+  one neos-disk    "Disk usage analyzer"
+  one neos-clean   "Free space by cleaning caches, logs, temp (dry-run first)"
   one neos-battery "Battery / power status"
 
   heading "Network"
@@ -102,7 +103,7 @@ summary_table() {
     neos-monitor neos-disk neos-clean neos-battery \
     neos-net neos-ip neos-speedtest \
     neos-todo neos-notes neos-timer neos-calc neos-fortune \
-    neos-new neos-lang \
+    neos-new neos-lang neos-health \
     neos-users neos-guest \
     neos-installer neos-distro \
     neos-wayland neos-wine neos-winetricks neos-winevm \
@@ -119,8 +120,8 @@ list_only() {
     'neos-drivers neos-ports neos-backup neos-serve neos-monitor neos-disk' \
     'neos-clean neos-battery neos-net neos-ip neos-speedtest neos-todo' \
     'neos-notes neos-timer neos-calc neos-fortune neos-new neos-lang' \
-    'neos-users neos-guest neos-installer neos-distro neos-wayland neos-wine' \
-    'neos-winetricks neos-winevm neolibs'
+    'neos-health neos-users neos-guest neos-installer neos-distro' \
+    'neos-wayland neos-wine neos-winetricks neos-winevm neolibs'
 }
 
 case "${1:-}" in

@@ -61,8 +61,9 @@ library.
   command/file), `neos-serve` (HTTP file share with upload),
   `neos-backup` (configs + package-list backup/restore).
 - **Monitor & health section** — `neos-monitor` (live CPU/memory/top),
-  `neos-disk` (disk analyzer), `neos-clean` (cache/log/temp cleaner,
-  dry-run first), `neos-battery` (power status).
+  `neos-health` (system health check), `neos-disk` (disk analyzer),
+  `neos-clean` (cache/log/temp cleaner, dry-run first),
+  `neos-battery` (power status).
 - **Network section** — `neos-net` (interfaces/gateway/DNS/ping),
   `neos-ip` (local + public IPs), `neos-speedtest`.
 - **Productivity section** — `neos-todo`, `neos-notes`, `neos-timer`
