@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# neos-clean — free disk space by cleaning caches, logs, temp and junk.
+# Nothing is deleted without --apply; the default is a dry run.
+#   neos-clean                    dry run: show what can be cleaned
+#   neos-clean --apply            actually clean
+#   neos-clean --apt              apt package cache (needs root)
+#   neos-clean --logs             /var/log old/rotated logs (needs root)
+#   neos-clean --temp             user temp files in /tmp
+#   neos-clean --home             ~/.cache
+#   neos-clean --all              every category
+#   neos-clean (no args)          dry run of every category
+
+set -euo pipefail
+
+APPLY=0
+declare -A WANT=([apt]=0 [logs]=0 [temp]=0 [home]=0)
+[[ $# -eq 0 ]] && WANT=([apt]=1 [logs]=1 [temp]=1 [home]=1)
+
+for arg in "$@"; do
+  case "$arg" in
+    --apply) APPLY=1 ;;
+    --apt)   WANT[apt]=1 ;;
+    --logs)  WANT[logs]=1 ;;
+    --temp)  WANT[temp]=1 ;;
+    --home)  WANT[home]=1 ;;
+    --all)   WANT=([apt]=1 [logs]=1 [temp]=1 [home]=1) ;;
+    -h|--help) sed -n '2,11p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+    *) echo "neos-clean: unknown option '$arg'"; exit 1 ;;
+  esac
+done
+
+total_saved=0
+report() {
+  local name="$1" size_before="$2"
+  total_saved=$((total_saved + size_before))
+  if (( APPLY )); then
+    echo "  cleaned $name ($(( size_before / 1024 )) MiB freed)"
+  else
+    echo "  would free $(( size_before / 1024 )) MiB from $name"
+  fi
+}
+
+size_mib() { # size in KiB -> MiB rounded
+  echo "$(( $1 / 1024 ))"
+}
+
+[[ ${WANT[apt]} == 1 ]] && {
+  sz=$(du -sk /var/cache/apt 2>/dev/null | cut -f1 || echo 0)
+  (( sz > 0 )) && { report "apt cache" "$sz"; if (( APPLY )); then
+    apt-get clean 2>/dev/null || sudo apt-get clean 2>/dev/null || true
+  fi; }
+}
+
+[[ ${WANT[logs]} == 1 ]] && {
+  sz=$(du -sk /var/log 2>/dev/null | cut -f1 || echo 0)
+  (( sz > 0 )) && { report "system logs" "$sz"; if (( APPLY )); then
+    find /var/log -type f -name '*.gz' -o -type f -name '*.old' 2>/dev/null | xargs -r rm -f
+    true
+  fi; }
+}
+
+[[ ${WANT[temp]} == 1 ]] && {
+  sz=$(du -sk /tmp 2>/dev/null | cut -f1 || echo 0)
+  (( sz > 0 )) && { report "temp files" "$sz"; if (( APPLY )); then
+    find /tmp -mindepth 1 -user "$(id -un)" -mtime +1 -delete 2>/dev/null || true
+  fi; }
+}
+
+[[ ${WANT[home]} == 1 ]] && {
+  sz=$(du -sk "$HOME/.cache" 2>/dev/null | cut -f1 || echo 0)
+  (( sz > 0 )) && { report "user cache" "$sz"; if (( APPLY )); then
+    rm -rf "$HOME/.cache"/* 2>/dev/null || true
+  fi; }
+}
+
+if (( APPLY )); then
+  echo "Done. Freed ~$(( total_saved / 1024 )) MiB total."
+else
+  echo "Dry run — nothing deleted. Re-run with --apply to clean."
+fi

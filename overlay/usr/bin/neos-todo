@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# neos-todo — simple terminal todo list for NeoOS.
+# Items are stored in ~/.neos/todo.txt.
+#   neos-todo                  list all items
+#   neos-todo add "text"       add a todo
+#   neos-todo done <n>         mark item n done
+#   neos-todo undo <n>         un-mark item n
+#   neos-todo rm <n>           remove item n
+#   neos-todo clear            remove all items
+#   neos-todo count            number of open items
+
+set -euo pipefail
+
+DIR="$HOME/.neos"
+FILE="$DIR/todo.txt"
+mkdir -p "$DIR"
+[[ -f "$FILE" ]] || touch "$FILE"
+
+list() {
+  if [[ ! -s "$FILE" ]]; then
+    echo "No todos. Add one with: neos-todo add \"buy milk\""
+    return
+  fi
+  local i=0
+  while IFS=$'\t' read -r state text; do
+    i=$((i+1))
+    if [[ "$state" == "x" ]]; then
+      printf '\033[2m  %2d. [x] %s\033[0m\n' "$i" "$text"
+    else
+      printf '  %2d. [ ] %s\n' "$i" "$text"
+    fi
+  done < "$FILE"
+}
+
+open_count() {
+  grep -c '^o' "$FILE" 2>/dev/null || echo 0
+}
+
+need_n() {
+  [[ "$#" -eq 1 && "$1" =~ ^[0-9]+$ ]] || { echo "neos-todo: item number required (see neos-todo --help)"; exit 1; }
+}
+
+set_state() {
+  local n="$1" new="$2"
+  need_n "$n"
+  local tmp
+  tmp=$(mktemp)
+  awk -v n="$n" -v s="$new" -F'\t' '
+    BEGIN{c=0}
+    { c++; if (c==n) { if (s=="x") print "x\t" $2; else print "o\t" $2 } else print }
+  ' "$FILE" > "$tmp" && mv "$tmp" "$FILE"
+}
+
+case "${1:-}" in
+  ""|list) list ;;
+  add)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-todo add \"text\""; exit 1; }
+    printf 'o\t%s\n' "$*" >> "$FILE"
+    echo "Added: $*"; list
+    ;;
+  done)  set_state "$2" x; list ;;
+  undo)  set_state "$2" o; list ;;
+  rm)
+    need_n "$2"
+    tmp=$(mktemp)
+    awk -v n="$2" 'NR!=n' "$FILE" > "$tmp" && mv "$tmp" "$FILE"
+    list
+    ;;
+  clear)
+    : > "$FILE"; echo "Cleared all todos."
+    ;;
+  count) echo "$(open_count) open todo(s)" ;;
+  -h|--help) sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-todo: unknown option '$1'"; exit 1 ;;
+esac

@@ -18,7 +18,11 @@ library.
       │  Wayland     Weston + XWayland session          │
       │  Wine        Windows apps (neos-wine + VM)      │
       │  NeoLIBs     multi-version library manager      │
-      │  Tools       pkg, distro installer, backup, ... │
+      │  Monitor     live sysmon, disk, cleaner, bat    │
+      │  Network     diagnostics, IP, speed test        │
+      │  Productivity todos, notes, timer, calc         │
+      │  Dev         project scaffolds + lang toolchains │
+      │  Tools       pkg, help, distro installer, ...   │
       │  System      apt, packages, shell, power        │
       └─────────────────────────────────────────────────┘
 ```
@@ -56,6 +60,15 @@ library.
   services + owning package), `neos-where` (which package owns a
   command/file), `neos-serve` (HTTP file share with upload),
   `neos-backup` (configs + package-list backup/restore).
+- **Monitor & health section** — `neos-monitor` (live CPU/memory/top),
+  `neos-disk` (disk analyzer), `neos-clean` (cache/log/temp cleaner,
+  dry-run first), `neos-battery` (power status).
+- **Network section** — `neos-net` (interfaces/gateway/DNS/ping),
+  `neos-ip` (local + public IPs), `neos-speedtest`.
+- **Productivity section** — `neos-todo`, `neos-notes`, `neos-timer`
+  (countdown/pomodoro), `neos-calc`, `neos-fortune`.
+- **Dev section** — `neos-new` (scaffolds bash/python/C/web/shlib
+  projects) and `neos-lang` (install/list language toolchains).
 - **User manager** (`neos-users`) — create multiple users with two
   levels (normal / Administrator), delete/passwd/groups, plus a
   disposable `guest` account with first-time auto-login on tty1.

@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# neos-new — scaffold a new project quickly.
+#   neos-new bash <name>        executable bash script
+#   neos-new python <name>      python3 script
+#   neos-new c <name>           C source + Makefile
+#   neos-new web <name>         static HTML/CSS/JS page
+#   neos-new shlib <name>       shared library (C) with Makefile
+#   neos-new --list             available templates
+
+set -euo pipefail
+
+TEMPLATES="bash python c web shlib"
+TEMPLATE="${1:-}"
+NAME="${2:-}"
+if [[ "$TEMPLATE" == "--list" ]]; then
+  echo "Available templates: $TEMPLATES"
+  exit 0
+fi
+[[ -n "$TEMPLATE" && -n "$NAME" ]] || {
+  echo "usage: neos-new <template> <name>   (templates: $TEMPLATES)"
+  exit 1
+}
+[[ -d "$NAME" ]] && { echo "neos-new: '$NAME' already exists"; exit 1; }
+
+mkdir -p "$NAME"
+
+case "$TEMPLATE" in
+  bash)
+    cat > "$NAME/$NAME.sh" <<EOF
+#!/usr/bin/env bash
+# $NAME — a NeoOS bash script.
+set -euo pipefail
+echo "Hello from $NAME!"
+EOF
+    chmod +x "$NAME/$NAME.sh"
+    ;;
+  python)
+    cat > "$NAME/$NAME.py" <<EOF
+#!/usr/bin/env python3
+"""$NAME — a NeoOS python script."""
+def main():
+    print("Hello from $NAME!")
+
+if __name__ == "__main__":
+    main()
+EOF
+    chmod +x "$NAME/$NAME.py"
+    ;;
+  c)
+    cat > "$NAME/$NAME.c" <<EOF
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello from %s!\n", "$NAME");
+    return 0;
+}
+EOF
+    cat > "$NAME/Makefile" <<EOF
+CC ?= cc
+CFLAGS ?= -O2 -Wall
+
+$NAME: $NAME.c
+	\$(CC) \$(CFLAGS) -o \$@ $NAME.c
+
+clean:
+	rm -f $NAME
+
+.PHONY: clean
+EOF
+    ;;
+  web)
+    cat > "$NAME/index.html" <<EOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>$NAME</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>$NAME</h1>
+  <script src="app.js"></script>
+</body>
+</html>
+EOF
+    cat > "$NAME/style.css" <<EOF
+body { font-family: system-ui, sans-serif; margin: 2rem; }
+EOF
+    cat > "$NAME/app.js" <<EOF
+console.log("$NAME ready");
+EOF
+    ;;
+  shlib)
+    cat > "$NAME/$NAME.c" <<EOF
+/* $NAME — example shared library */
+int ${NAME}_version(void) {
+    return 1;
+}
+EOF
+    cat > "$NAME/Makefile" <<EOF
+CC ?= cc
+CFLAGS ?= -O2 -fPIC -Wall
+
+lib$NAME.so: $NAME.c
+	\$(CC) \$(CFLAGS) -shared -o \$@ $NAME.c
+
+clean:
+	rm -f lib$NAME.so
+
+.PHONY: clean
+EOF
+    ;;
+  *)
+    echo "neos-new: unknown template '$TEMPLATE' (templates: $TEMPLATES)"
+    rm -rf "$NAME"
+    exit 1
+    ;;
+esac
+
+echo "Created '$NAME' ($TEMPLATE template) in ./$NAME"

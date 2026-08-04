@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# neos-speedtest — quick download/upload speed test.
+# Uses curl to transfer a known-size file and reports MB/s and Mbps.
+#   neos-speedtest              download test (default endpoint)
+#   neos-speedtest --mb 50      test size in MiB (default 10)
+#   neos-speedtest --url URL    test against a custom file URL
+#   neos-speedtest --timeout S  per-transfer timeout (default 20)
+
+set -euo pipefail
+
+SIZE_MB=10
+TIMEOUT=20
+URL="${NEOS_SPEEDTEST_URL:-https://cachefly.cachefly.net/100mb.test}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mb) SIZE_MB="$2"; shift ;;
+    --url) URL="$2"; shift ;;
+    --timeout) TIMEOUT="$2"; shift ;;
+    -h|--help) sed -n '2,8p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+    *) echo "neos-speedtest: unknown option '$1'"; exit 1 ;;
+  esac
+  shift
+done
+
+command -v curl >/dev/null 2>&1 || { echo "neos-speedtest needs curl: apt install curl"; exit 1; }
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+echo "Testing download from $URL"
+echo "  (transferring ~${SIZE_MB} MiB)"
+start=$(date +%s.%N)
+curl -s -L --max-time "$TIMEOUT" -o "$tmp" --limit-rate "${SIZE_MB}M" "$URL" 2>/dev/null || true
+end=$(date +%s.%N)
+got=$(du -k "$tmp" 2>/dev/null | cut -f1 || echo 0)
+secs=$(awk -v a="$start" -v b="$end" 'BEGIN{printf "%.2f", b-a}')
+mbs=$(awk -v g="$got" -v s="$secs" 'BEGIN{if (s>0) printf "%.1f", g/1024/s; else print "0"}')
+mbps=$(awk -v m="$mbs" 'BEGIN{printf "%.1f", m*8}')
+
+echo "  downloaded: $((got / 1024)) MiB in ${secs}s"
+echo "  speed: ${mbs} MiB/s  (${mbps} Mbps)"

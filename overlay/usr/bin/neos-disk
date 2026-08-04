@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# neos-disk — disk usage analyzer for NeoOS.
+# Shows per-filesystem usage and the largest directories.
+#   neos-disk                summary of all mounted filesystems
+#   neos-disk /path          largest dirs under a path
+#   neos-disk all            filesystems + largest dirs on /
+#   neos-disk top [N]        top N largest dirs on / (default 15)
+#   neos-disk home           largest dirs under $HOME
+
+set -euo pipefail
+
+TOP=15
+
+top_dirs() {
+  local root="${1:-/}"
+  [[ -d "$root" ]] || { echo "neos-disk: no such directory: $root"; return 1; }
+  du -x --max-depth=1 -h "$root" 2>/dev/null | sort -rh | head -n "$TOP" |
+    awk '{ if (length($2) > 60) sub($2, "..." substr($2, length($2)-56)); print "  " $1 "\t" $2 }'
+}
+
+fs_summary() {
+  echo -e "\033[1;36mFilesystems\033[0m"
+  df -h -x tmpfs -x devtmpfs -x squashfs 2>/dev/null | awk 'NR==1 || $1 ~ /^\/dev/ || $1 ~ /^overlay/ {print "  " $0}'
+}
+
+case "${1:-}" in
+  ""|fs)
+    fs_summary
+    ;;
+  all)
+    fs_summary
+    echo
+    echo -e "\033[1;36mLargest directories on /\033[0m"
+    top_dirs /
+    ;;
+  top)
+    [[ "${2:-}" =~ ^[0-9]+$ ]] && TOP="$2"
+    top_dirs /
+    ;;
+  home)
+    top_dirs "$HOME"
+    ;;
+  -h|--help)
+    sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//'
+    ;;
+  *)
+    top_dirs "$1"
+    ;;
+esac

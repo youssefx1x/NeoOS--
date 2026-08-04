@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# neos-lang — language/toolchain manager for NeoOS.
+# Installs, reports and updates programming language toolchains.
+#   neos-lang list              show current versions of installed toolchains
+#   neos-lang install <lang>    install a toolchain (python, node, rust,
+#                               go, java, ruby, perl, php, gcc, lua, ...)
+#   neos-lang remove <lang>     uninstall a toolchain
+#   neos-lang upgrade           upgrade all toolchains
+#   neos-lang available         list known toolchains
+
+set -euo pipefail
+
+run_root() {
+  if [[ $EUID -eq 0 ]]; then "$@"
+  elif command -v sudo >/dev/null 2>&1; then sudo "$@"
+  else echo "root required: $*"; return 1; fi
+}
+
+declare -A PKG_MAP=(
+  [python]="python3 python3-pip python3-dev"
+  [python3]="python3 python3-pip python3-dev"
+  [node]="nodejs npm"
+  [rust]="rustc cargo"
+  [go]="golang"
+  [java]="default-jdk-headless"
+  [ruby]="ruby"
+  [perl]="perl"
+  [php]="php-cli"
+  [gcc]="gcc g++ build-essential"
+  [c]="gcc g++ make build-essential"
+  [lua]="lua5.4"
+  [git]="git"
+)
+
+list_versions() {
+  echo "Installed toolchains:"
+  local found=0
+  for tool in python3 node rustc cargo go java ruby perl php gcc g++ make lua git; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      ver=$("$tool" --version 2>/dev/null | head -1 || "$tool" -version 2>/dev/null | head -1 || echo "?")
+      printf '  \033[1;32m%-8s\033[0m %s\n' "$tool" "$ver"
+      found=1
+    fi
+  done
+  (( found )) || echo "  (no toolchains installed — try: neos-lang install python)"
+}
+
+install() {
+  local lang="$1"
+  local pkgs="${PKG_MAP[$lang]:-}"
+  if [[ -z "$pkgs" ]]; then
+    echo "neos-lang: unknown toolchain '$lang' (see: neos-lang available)"
+    return 1
+  fi
+  echo "Installing $lang: $pkgs"
+  run_root apt update && run_root apt install -y $pkgs
+}
+
+remove() {
+  local lang="$1"
+  local pkgs="${PKG_MAP[$lang]:-}"
+  [[ -n "$pkgs" ]] || { echo "neos-lang: unknown toolchain '$lang'"; return 1; }
+  echo "Removing $lang: $pkgs"
+  run_root apt remove -y $pkgs || true
+}
+
+case "${1:-}" in
+  list|""|status) list_versions ;;
+  install)  [[ -n "${2:-}" ]] && install "$2" || { echo "usage: neos-lang install <lang>"; exit 1; } ;;
+  remove)   [[ -n "${2:-}" ]] && remove "$2" || { echo "usage: neos-lang remove <lang>"; exit 1; } ;;
+  upgrade)  echo "Upgrading toolchains..."; run_root apt update && run_root apt upgrade -y ;;
+  available)
+    echo "Known toolchains:"
+    for k in "${!PKG_MAP[@]}"; do printf '  %-10s %s\n' "$k" "${PKG_MAP[$k]}"; done | sort
+    ;;
+  -h|--help) sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-lang: unknown option '$1'"; exit 1 ;;
+esac

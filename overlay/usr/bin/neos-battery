@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# neos-battery — battery and power status for NeoOS laptops.
+#   neos-battery          battery + AC status
+#   neos-battery percent  charge percentage only
+#   neos-battery --watch  live-updating view (q to quit)
+
+set -euo pipefail
+
+battery_glob=/sys/class/power_supply/BAT*
+ac_glob=/sys/class/power_supply/AC*
+
+find_battery() {
+  for d in $battery_glob; do
+    [[ -d "$d" ]] && { echo "$d"; return 0; }
+  done
+  return 1
+}
+
+status() {
+  local b a
+  if b=$(find_battery); then
+    pct=$(cat "$b/capacity" 2>/dev/null || echo "?")
+    status_raw=$(cat "$b/status" 2>/dev/null || echo "?")
+    case "$status_raw" in
+      Charging)   st="charging" ;;
+      Discharging) st="discharging" ;;
+      Full)       st="full" ;;
+      *)          st="$status_raw" ;;
+    esac
+  else
+    pct="n/a"; st="no battery found"
+  fi
+
+  local ac="unknown"
+  for a in $ac_glob; do
+    if [[ -d "$a" ]]; then
+      on=$(cat "$a/online" 2>/dev/null || echo 0)
+      ac=$([[ "$on" == "1" ]] && echo "plugged in" || echo "on battery")
+      break
+    fi
+  done
+
+  printf 'Battery: %s%% (%s)  |  Power: %s\n' "$pct" "$st" "$ac"
+}
+
+case "${1:-}" in
+  percent) find_battery >/dev/null 2>&1 && cat /sys/class/power_supply/BAT*/capacity 2>/dev/null || echo n/a ;;
+  --watch)
+    trap 'printf "\033[?25h"; exit 0' INT TERM
+    printf '\033[?25l'
+    while true; do
+      printf '\r\033[K'
+      status
+      read -r -t 2 -n 1 k && [[ "$k" == "q" ]] && break
+    done
+    printf '\033[?25h\n'
+    ;;
+  -h|--help) sed -n '2,6p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) status ;;
+esac

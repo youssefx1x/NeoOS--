@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# neos-ip — show local and public IP addresses.
+#   neos-ip               local + public IPs
+#   neos-ip local         local interface addresses
+#   neos-ip public        public IP only
+#   neos-ip --watch       re-check every 5s
+
+set -euo pipefail
+
+local_ips() {
+  if command -v ip >/dev/null 2>&1; then
+    ip -4 -o addr show scope global 2>/dev/null | awk '{printf "  %s: %s\n", $2, $4}'
+  fi
+  echo "  hostname: $(hostname -I 2>/dev/null | awk '{print $1}')"
+}
+
+public_ip() {
+  local ip
+  ip=$(curl -s --max-time 6 https://ifconfig.me/ip 2>/dev/null) || ip=""
+  if [[ -n "$ip" ]]; then
+    echo "  public IP: $ip"
+  else
+    echo "  (offline or curl not installed)"
+  fi
+}
+
+case "${1:-}" in
+  ""|all)
+    echo "Local:"
+    local_ips
+    echo
+    echo "Public:"
+    public_ip
+    ;;
+  local)  local_ips ;;
+  public) public_ip ;;
+  --watch)
+    while true; do
+      printf '\033[2J\033[H'
+      echo "Local:"
+      local_ips
+      echo
+      echo "Public:"
+      public_ip
+      printf '\n\033[2mq to quit\033[0m'
+      read -r -t 5 -n 1 k && [[ "$k" == "q" ]] && break
+    done
+    ;;
+  -h|--help) sed -n '2,7p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-ip: unknown option '$1'"; exit 1 ;;
+esac

@@ -15,11 +15,14 @@ is repaired, and the version is bumped to 2.0 throughout
 ```
   +---------------------------------------------------------------+
   |  NeoOS layer  (overlay/ + neolibs/)                          |
-  |   neos-menu · neos-drivers · neos-wayland · neos-wine        |
-  |   neos-winevm · neos-winetricks · pkg · neos-distro          |
-  |   neos-fetch · neos-serve · neos-backup · neos-update        |
-  |   neos-ports · neos-where · neos-installer · neos-users      |
-  |   neos-help · neos-guest · neolibs · motd · os-release       |
+  |   neos-menu · neos-help · neos-fetch · neos-update            |
+  |   pkg · neos-where · neos-ports · neos-serve · neos-backup    |
+  |   neos-drivers · neos-installer · neos-users · neos-guest     |
+  |   neos-distro · neos-wayland · neos-wine · neos-winevm        |
+  |   neos-winetricks · neolibs · neos-monitor · neos-disk         |
+  |   neos-clean · neos-battery · neos-net · neos-ip · neos-speedtest |
+  |   neos-todo · neos-notes · neos-timer · neos-calc · neos-fortune |
+  |   neos-new · neos-lang · motd · os-release                    |
   |   calamares branding                                          |
   +---------------------------------------------------------------+
   |  Debian 13 (trixie) archive                                    |
@@ -68,6 +71,12 @@ A whiptail/dialog TUI with six sections:
 - **Wayland** — starts/installs the Wayland stack and Winetricks.
 - **Wine** — `neos-wine`/`neos-winevm` (Windows apps + Win10 VMs).
 - **NeoLIBs** — thin wrapper around `neolibs`.
+- **Monitor** — `neos-monitor`, `neos-disk`, `neos-clean`, `neos-battery`.
+- **Network** — `neos-net`, `neos-ip`, `neos-speedtest`.
+- **Productivity** — `neos-todo`, `neos-notes`, `neos-timer`,
+  `neos-calc`, `neos-fortune`.
+- **Dev** — `neos-new` (project scaffolds), `neos-lang` (language
+  toolchains).
 - **Tools** — pkg manager, `neos-help`, `neos-distro`, `neos-update`,
   `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
   `neos-backup`, `pkg self-update`.

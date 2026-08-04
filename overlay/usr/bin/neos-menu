@@ -37,13 +37,17 @@ run_as_root() {
 
 main_menu() {
   local choice
-  choice=$(BOX "NeoOS" "Select a section (arrows/enter, Tab to switch)" 22 70 12 \
+  choice=$(BOX "NeoOS" "Select a section (arrows/enter, Tab to switch)" 24 72 14 \
     "Code"      "Updated code applications (compilers, editors, toolchains)" \
     "Internet"  "Browsers, messaging, network utilities" \
     "Drivers"   "Hardware / driver installer" \
     "Wayland"   "Wayland session and graphics stack" \
     "Wine"      "Windows apps: neos-wine + neos-winevm (Win10 VM)" \
     "NeoLIBs"   "Multi-version library manager" \
+    "Monitor"   "Live system monitor, disk usage, cleaner, battery" \
+    "Network"   "Diagnostics, IP info, speed test" \
+    "Productivity" "Todos, notes, timer, calculator, fortune" \
+    "Dev"       "Project scaffolds + language toolchains" \
     "Tools"     "pkg manager, distro installer, backup, fetch, ports" \
     "System"    "System update, packages, shell, power" \
     "Quit"      "Exit to shell" 3>&1 1>&2 2>&3)
@@ -54,6 +58,10 @@ main_menu() {
     Wayland)  wayland_menu;;
     Wine)     wine_menu;;
     NeoLIBs)  neolibs_menu;;
+    Monitor)  monitor_menu;;
+    Network)  network_menu;;
+    Productivity) productivity_menu;;
+    Dev)      dev_menu;;
     Tools)    tools_menu;;
     System)   system_menu;;
     Quit|"")  return 0;;
@@ -159,6 +167,74 @@ wine_menu() {
     "VM: list")         neos-winevm list 2>&1 || true; pause;;
     "VM: run app")      read -r -p "VM name: " vmn; read -r -p ".exe path: " exe; neos-winevm run "$vmn" -- "$exe" 2>&1 || true; pause;;
     "VM: install app")  read -r -p "VM name: " vmn; read -r -p "setup.exe path: " exe; neos-winevm install "$vmn" "$exe" 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+monitor_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Monitor" "System health & disk" 18 70 8 \
+    "Live monitor"   "neos-monitor (CPU, memory, top processes)" \
+    "Disk usage"     "neos-disk top (largest directories)" \
+    "Clean system"   "neos-clean (apt cache, logs, temp — dry run)" \
+    "Battery"        "neos-battery status" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Live monitor") neos-monitor 2>&1 || true; pause;;
+    "Disk usage")   neos-disk top 2>&1 || true; pause;;
+    "Clean system") neos-clean 2>&1 || true; pause;;
+    "Battery")      neos-battery 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+network_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Network" "Network diagnostics" 18 70 8 \
+    "Diagnostics"   "neos-net (interfaces, gateway, DNS, connectivity)" \
+    "My IP"         "neos-ip (local + public IPs)" \
+    "Speed test"    "neos-speedtest" \
+    "Ping"          "neos-net ping" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Diagnostics")  neos-net 2>&1 || true; pause;;
+    "My IP")        neos-ip 2>&1 || true; pause;;
+    "Speed test")   neos-speedtest 2>&1 || true; pause;;
+    "Ping")         neos-net ping 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+productivity_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Productivity" "Todos, notes, timers, calculator" 18 70 8 \
+    "Todo list"    "neos-todo (add/done/list)" \
+    "Notes"        "neos-notes (list/new/show)" \
+    "Timer"        "neos-timer countdown/pomodoro" \
+    "Calculator"   "neos-calc" \
+    "Fortune"      "neos-fortune (random quote or tip)" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Todo list")   neos-todo 2>&1 || true; pause;;
+    "Notes")       neos-notes 2>&1 || true; pause;;
+    "Timer")       read -r -p "duration (e.g. 5m, 25m, pomodoro): " t; neos-timer "${t:-5m}" 2>&1 || true; pause;;
+    "Calculator")  neos-calc 2>&1 || true; pause;;
+    "Fortune")     neos-fortune 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+dev_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Dev" "Scaffold projects + language toolchains" 18 70 8 \
+    "New project"   "neos-new (bash, python, c, web, shlib)" \
+    "Languages"     "neos-lang list (installed toolchains)" \
+    "Install lang"  "neos-lang install (python, node, rust...)" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "New project")  read -r -p "template + name (e.g. bash mytool): " a; neos-new $a 2>&1 || true; pause;;
+    "Languages")    neos-lang list 2>&1 || true; pause;;
+    "Install lang") read -r -p "language (python|node|rust|go|java|ruby|php): " l; neos-lang install "$l" 2>&1 || true; pause;;
     *) return 0;;
   esac
 }

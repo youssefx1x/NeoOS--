@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# neos-notes — quick plain-text notes manager for NeoOS.
+# Notes are stored in ~/.neos/notes/ as .txt files.
+#   neos-notes                     list all notes
+#   neos-notes new <name>          create/edit a note
+#   neos-notes show <name>         print a note
+#   neos-notes edit <name>         edit a note ($EDITOR)
+#   neos-notes append <name> text  append text to a note
+#   neos-notes rm <name>           delete a note
+#   neos-notes search "term"       search all notes
+
+set -euo pipefail
+
+DIR="$HOME/.neos/notes"
+mkdir -p "$DIR"
+EDITOR="${EDITOR:-nano}"
+
+name_to_file() {
+  local n="$1"
+  echo "$DIR/${n%.txt}.txt"
+}
+
+list() {
+  if ! ls "$DIR"/*.txt >/dev/null 2>&1; then
+    echo "No notes yet. Create one: neos-notes new ideas"
+    return
+  fi
+  local f
+  for f in "$DIR"/*.txt; do
+    printf '  %-24s %4d lines  %s\n' "$(basename "${f%.txt}")" "$(wc -l < "$f")" "$(head -1 "$f" | cut -c1-40)"
+  done
+}
+
+show() {
+  local file
+  file=$(name_to_file "$1")
+  [[ -f "$file" ]] || { echo "neos-notes: no note '$1'"; exit 1; }
+  echo -e "\033[1;36m$1\033[0m"
+  echo "---"
+  cat "$file"
+}
+
+case "${1:-}" in
+  ""|list) list ;;
+  new)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-notes new <name>"; exit 1; }
+    "$EDITOR" "$(name_to_file "$2")"
+    ;;
+  show) show "${2:-}";;
+  edit)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-notes edit <name>"; exit 1; }
+    file=$(name_to_file "$2")
+    [[ -f "$file" ]] || { echo "neos-notes: no note '$2' (create with: neos-notes new $2)"; exit 1; }
+    "$EDITOR" "$file"
+    ;;
+  append)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-notes append <name> text..."; exit 1; }
+    name="$2"; shift 2
+    file=$(name_to_file "$name")
+    [[ -f "$file" ]] || { echo "neos-notes: no note '$name'"; exit 1; }
+    printf '%s\n' "$*" >> "$file"
+    echo "Appended to $name."
+    ;;
+  rm)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-notes rm <name>"; exit 1; }
+    rm -f "$(name_to_file "$2")"
+    echo "Removed note '$2'."
+    ;;
+  search)
+    grep -rni -- "${2:-}" "$DIR" 2>/dev/null || echo "No matches."
+    ;;
+  -h|--help) sed -n '2,11p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-notes: unknown option '$1'"; exit 1 ;;
+esac

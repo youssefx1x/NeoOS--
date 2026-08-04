@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# neos-fortune — a random quote or tip for your terminal.
+#   neos-fortune            show a random quote
+#   neos-fortune tip        a helpful NeoOS tip
+#   neos-fortune add "text" add your own quote (~/.neos/fortunes.txt)
+#   neos-fortune list       show all quotes
+
+set -euo pipefail
+
+DIR="$HOME/.neos"
+CUSTOM="$DIR/fortunes.txt"
+mkdir -p "$DIR"
+
+QUOTES=(
+  "The best way to predict the future is to invent it. — Alan Kay"
+  "Simplicity is the ultimate sophistication. — Leonardo da Vinci"
+  "Talk is cheap. Show me the code. — Linus Torvalds"
+  "First, solve the problem. Then, write the code. — John Johnson"
+  "Programs must be written for people to read. — Harold Abelson"
+  "Premature optimization is the root of all evil. — Donald Knuth"
+  "In computing, the means of production are the means of exchange. — Andrew Tanenbaum"
+  "A clever person solves a problem. A wise person avoids it. — Albert Einstein"
+  "The computer was born to solve problems that did not exist before. — Bill Gates"
+  "It always seems impossible until it's done. — Nelson Mandela"
+)
+
+TIPS=(
+  "Run 'neos-help' to see every NeoOS command."
+  "Use 'pkg install <name>' for a Termux-style install."
+  "Check disk usage with 'neos-disk'."
+  "Make a quick note: neos-notes new ideas"
+  "Start a todo list: neos-todo add \"learn neos\""
+  "Monitor the system live: neos-monitor"
+  "Test your connection: neos-net ping"
+  "Run Windows console apps with neos-wine."
+  "Install other distros with neos-distro."
+  "Manage users with neos-users."
+)
+
+random_pick() {
+  local arr=("$@")
+  echo "${arr[$(( RANDOM % ${#arr[@]} ))]}"
+}
+
+if [[ -f "$CUSTOM" && -s "$CUSTOM" ]]; then
+  ALL=("${QUOTES[@]}" $(cat "$CUSTOM"))
+else
+  ALL=("${QUOTES[@]}")
+fi
+
+case "${1:-}" in
+  ""|quote) echo; echo "  $(random_pick "${ALL[@]}")"; echo ;;
+  tip) echo; echo -e "  \033[1;33mTip:\033[0m $(random_pick "${TIPS[@]}")"; echo ;;
+  add)
+    [[ -n "${2:-}" ]] || { echo "usage: neos-fortune add \"text\""; exit 1; }
+    printf '%s\n' "$*" >> "$CUSTOM"
+    echo "Added to your fortunes."
+    ;;
+  list)
+    echo "Your fortunes:"
+    [[ -f "$CUSTOM" ]] && cat "$CUSTOM" || echo "  (none added yet)"
+    ;;
+  -h|--help) sed -n '2,6p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-fortune: unknown option '$1'"; exit 1 ;;
+esac

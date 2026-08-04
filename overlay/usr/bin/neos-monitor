@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# neos-monitor — live system monitor for NeoOS.
+# CPU, memory, swap, load, running processes, top CPU/mem consumers.
+#   neos-monitor              live dashboard (press q to quit)
+#   neos-monitor once         print a single snapshot
+#   neos-monitor cpu          CPU usage only
+#   neos-monitor mem          memory/swap only
+#   neos-monitor top          top CPU-consuming processes only
+#   neos-monitor --interval N refresh every N seconds (default 2)
+
+set -euo pipefail
+
+INTERVAL=2
+MODE=dash
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    once) MODE=once ;;
+    cpu)  MODE=cpu ;;
+    mem)  MODE=mem ;;
+    top)  MODE=top ;;
+    --interval) INTERVAL="$2"; shift ;;
+    -h|--help) sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+    *) echo "neos-monitor: unknown option '$1'"; exit 1 ;;
+  esac
+  shift
+done
+
+c1=$(awk '/^cpu /{for(i=2;i<=8;i++) s+=$i; printf "%d", s}' /proc/stat)
+idle1=$(awk '/^cpu /{print $5}' /proc/stat)
+sleep 1
+c2=$(awk '/^cpu /{for(i=2;i<=8;i++) s+=$i; printf "%d", s}' /proc/stat)
+idle2=$(awk '/^cpu /{print $5}' /proc/stat)
+cpu_pct=$(awk -v a=$((c2-c1)) -v b=$((idle2-idle1)) 'BEGIN{printf "%.1f", (1 - b/a) * 100}')
+
+mem_total=$(awk '/MemTotal/{printf "%.1f", $2/1024/1024}' /proc/meminfo)
+mem_avail=$(awk '/MemAvailable/{printf "%.1f", $2/1024/1024}' /proc/meminfo)
+mem_used=$(awk -v t="$mem_total" -v a="$mem_avail" 'BEGIN{printf "%.1f", t-a}')
+swap_total=$(awk '/SwapTotal/{printf "%.1f", $2/1024/1024}' /proc/meminfo)
+swap_free=$(awk '/SwapFree/{printf "%.1f", $2/1024/1024}' /proc/meminfo)
+
+load=$(awk '{print $1, $2, $3}' /proc/loadavg)
+uptime_s=$(awk '{print $1}' /proc/uptime)
+up_days=$(awk -v s="$uptime_s" 'BEGIN{printf "%dd %dh %dm", int(s/86400), int(s%86400/3600), int(s%3600/60)}')
+
+top_procs() {
+  local n=${1:-8}
+  for d in /proc/[0-9]*; do
+    [[ -r "$d/stat" ]] || continue
+    read -r pid comm st rest < "$d/stat"
+    utime=$(echo "$rest" | awk '{print $12 + $13}')
+    printf "%s\t%s\t%s\n" "$utime" "${d##*/}" "$comm"
+  done | sort -rn | head -n "$n" | while IFS=$'\t' read -r u pid comm; do
+    printf "  %-6s %-10s %s\n" "$pid" "$(awk -v u="$u" 'BEGIN{printf "%.1f%%", u/CLK_TCK/100}')" "${comm:0:30}"
+  done
+}
+
+cpu_line() {
+  printf 'CPU:    %s%%  (1-min load %s)\n' "$cpu_pct" "$(awk '{print $1}' /proc/loadavg)"
+}
+
+mem_line() {
+  printf 'Memory: %sGiB used / %sGiB total\n' "$mem_used" "$mem_total"
+  if [[ "$swap_total" != "0.0" ]]; then
+    printf 'Swap:   %sGiB free / %sGiB\n' "$swap_free" "$swap_total"
+  fi
+}
+
+snapshot() {
+  printf '\033[1;36mNeoOS Monitor — up %s, load: %s\033[0m\n' "$up_days" "$load"
+  cpu_line
+  mem_line
+}
+
+case "$MODE" in
+  once)
+    snapshot
+    ;;
+  cpu)
+    cpu_line
+    ;;
+  mem)
+    mem_line
+    ;;
+  top)
+    echo "Top CPU consumers:"
+    top_procs
+    ;;
+  dash)
+    trap 'printf "\033[?25h"; exit 0' INT TERM
+    printf '\033[?25l\033[2J'
+    while true; do
+      printf '\033[H'
+      snapshot
+      echo
+      echo "Top CPU consumers:"
+      top_procs
+      printf '\n\033[2mq to quit\033[0m'
+      read -r -t "$INTERVAL" -n 1 k && [[ "$k" == "q" ]] && break
+    done
+    printf '\033[?25h\n'
+    ;;
+esac

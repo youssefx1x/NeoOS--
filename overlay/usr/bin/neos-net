@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# neos-net — network diagnostics for NeoOS.
+#   neos-net              all checks: interfaces, gateway, DNS, connectivity
+#   neos-net ip           local IP addresses
+#   neos-net gateway      default route
+#   neos-net dns          configured DNS servers
+#   neos-net ping [host]  quick reachability test (default 1.1.1.1)
+#   neos-net speed        quick download speed test
+#   neos-net whoami       public IP + ISP info
+
+set -euo pipefail
+
+run() { echo -e "\033[1;36m== $1 ==\033[0m"; shift; "$@" 2>&1 || echo "  (unavailable)"; }
+
+interfaces() {
+  echo "Interfaces:"
+  ip -4 -o addr show 2>/dev/null | awk '{printf "  %s: %s\n", $2, $4}' \
+    || cat /proc/net/fib_trie 2>/dev/null | head -20 || echo "  none"
+}
+
+gateway() {
+  echo "Default route:"
+  ip route show default 2>/dev/null | awk '{print "  " $0}' \
+    || awk '/default/{print "  via " $3 " dev " $5}' /proc/net/route 2>/dev/null || echo "  none"
+}
+
+dns() {
+  echo "DNS servers:"
+  awk '/^nameserver/{print "  " $2}' /etc/resolv.conf 2>/dev/null | head -4 || echo "  none"
+}
+
+ping_test() {
+  local host="${1:-1.1.1.1}"
+  if command -v ping >/dev/null 2>&1; then
+    echo "  $(ping -c 3 -W 2 "$host" 2>&1 | tail -2 | head -1)"
+  else
+    echo "  ping not installed (apt install iputils-ping)"
+  fi
+}
+
+whoami() {
+  local out
+  out=$(curl -s --max-time 6 https://ipinfo.io 2>/dev/null) || out=""
+  if [[ -n "$out" ]]; then
+    echo "  $(printf '%s' "$out" | awk -F'"' '/"ip"/{printf "IP: %s", $4} /"city"/{printf ", %s", $4} /"region"/{printf ", %s", $4} /"org"/{printf " (%s)", $4}')"
+  else
+    echo "  no internet or curl not available"
+  fi
+}
+
+case "${1:-}" in
+  ""|all)
+    interfaces; gateway; dns
+    echo
+    run "Connectivity" ping_test "${2:-}"
+    ;;
+  ip)     interfaces ;;
+  gateway) gateway ;;
+  dns)    dns ;;
+  ping)   ping_test "${2:-1.1.1.1}" ;;
+  speed)  neos-speedtest ;;
+  whoami) whoami ;;
+  -h|--help) sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  *) echo "neos-net: unknown option '$1'"; exit 1 ;;
+esac

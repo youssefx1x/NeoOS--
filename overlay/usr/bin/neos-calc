@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# neos-calc — terminal calculator for NeoOS.
+# Uses python3 (best) → bc → awk, whichever is installed.
+#   neos-calc "2+2*5"          evaluate an expression
+#   neos-calc 2 + 2 * 5        args are joined into one expression
+#   neos-calc                  interactive mode (Ctrl-D to exit)
+# Supports + - * / % ** and math functions (sqrt, sin, cos, log, ...).
+
+set -euo pipefail
+
+# Pick an engine.
+ENGINE=""
+if command -v python3 >/dev/null 2>&1; then
+  ENGINE=python3
+elif command -v bc >/dev/null 2>&1; then
+  ENGINE=bc
+elif command -v awk >/dev/null 2>&1; then
+  ENGINE=awk
+fi
+
+if [[ -z "$ENGINE" ]]; then
+  echo "neos-calc: no calculator engine found (need python3, bc, or awk)"
+  exit 1
+fi
+
+calc() {
+  local expr="$1"
+  case "$ENGINE" in
+    python3)
+      python3 -c "
+import math
+expr = '''$expr'''
+expr = expr.replace('^', '**')
+expr = expr.replace('π', str(math.pi)).replace('PI', str(math.pi))
+try:
+    result = eval(expr, {'__builtins__': {}}, {
+        'sqrt': math.sqrt, 'sin': math.sin, 'cos': math.cos,
+        'tan': math.tan, 'atan2': math.atan2, 'exp': math.exp,
+        'log': math.log, 'log10': math.log10, 'floor': math.floor,
+        'ceil': math.ceil, 'abs': abs, 'round': round, 'pi': math.pi,
+    })
+    print(result)
+except Exception as e:
+    print('error:', e)
+" 2>&1
+      ;;
+    bc)
+      expr=$(echo "$expr" | sed 's/\^/**/g')
+      echo "scale=4; $expr" | bc 2>&1
+      ;;
+    awk)
+      expr=$(echo "$expr" | sed 's/\^/**/g')
+      awk "BEGIN{print $expr}" 2>&1
+      ;;
+  esac
+}
+
+if [[ $# -ge 1 ]]; then
+  calc "$*"
+else
+  echo "neos-calc (${ENGINE} engine) — type an expression, Ctrl-D to exit."
+  while read -r -p "> " line; do
+    [[ -z "$line" ]] && continue
+    [[ "$line" == "exit" || "$line" == "quit" ]] && break
+    calc "$line"
+  done
+fi

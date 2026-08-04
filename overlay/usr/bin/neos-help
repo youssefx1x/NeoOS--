@@ -37,6 +37,28 @@ EOF
   one neos-backup "Back up configs + installed-package list"
   one neos-serve  "Quick HTTP file sharing server (with upload option)"
 
+  heading "Monitor & health"
+  one neos-monitor "Live system monitor (CPU, memory, top processes)"
+  one neos-disk  "Disk usage analyzer"
+  one neos-clean "Free space by cleaning caches, logs, temp (dry-run first)"
+  one neos-battery "Battery / power status"
+
+  heading "Network"
+  one neos-net   "Network diagnostics (interfaces, gateway, DNS, ping)"
+  one neos-ip    "Local + public IP addresses"
+  one neos-speedtest "Quick download/upload speed test"
+
+  heading "Productivity"
+  one neos-todo  "Simple todo list"
+  one neos-notes "Quick plain-text notes"
+  one neos-timer "Countdown / pomodoro timer"
+  one neos-calc  "Calculator"
+  one neos-fortune "Random quote or NeoOS tip"
+
+  heading "Dev"
+  one neos-new   "Scaffold new projects (bash, python, c, web, shlib)"
+  one neos-lang  "Install / list language toolchains"
+
   heading "Users"
   one neos-users  "User manager: add (normal/Admin), delete, passwd, autologin"
   one neos-guest  "Disposable guest account: enable/disable/remove/status"
@@ -77,6 +99,10 @@ summary_table() {
   for cmd in \
     neos-menu neos-fetch neos-help \
     pkg neos-update neos-where neos-drivers neos-ports neos-backup neos-serve \
+    neos-monitor neos-disk neos-clean neos-battery \
+    neos-net neos-ip neos-speedtest \
+    neos-todo neos-notes neos-timer neos-calc neos-fortune \
+    neos-new neos-lang \
     neos-users neos-guest \
     neos-installer neos-distro \
     neos-wayland neos-wine neos-winetricks neos-winevm \
@@ -90,9 +116,11 @@ summary_table() {
 
 list_only() {
   printf '%s\n' 'neos-menu neos-fetch neos-help pkg neos-update neos-where' \
-    'neos-drivers neos-ports neos-backup neos-serve neos-users neos-guest' \
-    'neos-installer neos-distro neos-wayland neos-wine neos-winetricks' \
-    'neos-winevm neolibs'
+    'neos-drivers neos-ports neos-backup neos-serve neos-monitor neos-disk' \
+    'neos-clean neos-battery neos-net neos-ip neos-speedtest neos-todo' \
+    'neos-notes neos-timer neos-calc neos-fortune neos-new neos-lang' \
+    'neos-users neos-guest neos-installer neos-distro neos-wayland neos-wine' \
+    'neos-winetricks neos-winevm neolibs'
 }
 
 case "${1:-}" in
