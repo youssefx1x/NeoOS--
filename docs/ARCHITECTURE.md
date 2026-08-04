@@ -19,7 +19,8 @@ is repaired, and the version is bumped to 2.0 throughout
   |   neos-winevm · neos-winetricks · pkg · neos-distro          |
   |   neos-fetch · neos-serve · neos-backup · neos-update        |
   |   neos-ports · neos-where · neos-installer · neos-users      |
-  |   neos-guest · neolibs · motd · os-release · calamares branding |
+  |   neos-help · neos-guest · neolibs · motd · os-release       |
+  |   calamares branding                                          |
   +---------------------------------------------------------------+
   |  Debian 13 (trixie) archive                                    |
   |  main + contrib + non-free-firmware                            |
@@ -67,7 +68,7 @@ A whiptail/dialog TUI with six sections:
 - **Wayland** — starts/installs the Wayland stack and Winetricks.
 - **Wine** — `neos-wine`/`neos-winevm` (Windows apps + Win10 VMs).
 - **NeoLIBs** — thin wrapper around `neolibs`.
-- **Tools** — pkg manager, `neos-distro`, `neos-update`,
+- **Tools** — pkg manager, `neos-help`, `neos-distro`, `neos-update`,
   `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
   `neos-backup`, `pkg self-update`.
 - **System** — apt update/upgrade, package management, sources editor,

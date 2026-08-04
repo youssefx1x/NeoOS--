@@ -59,6 +59,7 @@ cat > "$ROOTFS/etc/motd" <<'EOF'
   NeoOS 2.0 — a Debian 13 terminal distribution
 
   Start menu ........ neos-menu
+  Help .............. neos-help
   Drivers ........... neos-drivers
   Install to disk ... neos-installer
   Users ............. neos-users

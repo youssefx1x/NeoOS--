@@ -165,7 +165,8 @@ wine_menu() {
 
 tools_menu() {
   local choice
-  choice=$(BOX "NeoOS - Tools" "NeoOS utility toolkit" 22 72 12 \
+  choice=$(BOX "NeoOS - Tools" "NeoOS utility toolkit" 23 72 13 \
+    "neos-help"    "List all NeoOS commands (command reference)" \
     "pkg manager"  "pkg update/upgrade/install/search (Termux-style)" \
     "pkg self-update" "Update NeoOS's own tools/scripts" \
     "neos-update"  "Plan-first system updater" \
@@ -177,6 +178,7 @@ tools_menu() {
     "neos-serve"   "Quick HTTP file sharing server" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
+    "neos-help")     neos-help 2>&1 || true; pause;;
     "pkg manager")   read -r -p "pkg command (e.g. update|install vim): " a; pkg $a 2>&1 || true; pause;;
     "pkg self-update") pkg self-update 2>&1 || true; pause;;
     "neos-update")   neos-update 2>&1 || true; pause;;

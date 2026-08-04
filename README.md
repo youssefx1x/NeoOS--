@@ -51,7 +51,8 @@ library.
   branding + a Debian-compatible install sequence; pulls the GUI stack in
   on demand so the base system stays lean.
 - **Utility toolkit** — `neos-update` (plan-first updater),
-  `neos-fetch` (neofetch-style banner), `neos-ports` (listening
+  `neos-fetch` (neofetch-style banner), `neos-help` (lists every NeoOS
+  command, with full usage per tool), `neos-ports` (listening
   services + owning package), `neos-where` (which package owns a
   command/file), `neos-serve` (HTTP file share with upload),
   `neos-backup` (configs + package-list backup/restore).

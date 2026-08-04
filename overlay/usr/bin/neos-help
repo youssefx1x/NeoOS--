@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# neos-help — NeoOS command reference. Lists every NeoOS tool with a
+# one-line summary, or full usage for a single command.
+#   neos-help                 overview of all NeoOS commands
+#   neos-help <command>       full usage of one command
+#   neos-help --all           detailed usage of every command
+#   neos-help --list          just the command names
+
+set -euo pipefail
+
+BANNER='NeoOS 2.0 — terminal-first Debian 13 distribution'
+
+one() {
+  local cmd="$1" line="$2"
+  printf '  \033[1;32m%-16s\033[0m %s\n' "$cmd" "$line"
+}
+
+heading() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1"
+}
+
+overview() {
+  cat <<EOF
+$BANNER
+EOF
+  heading "Start menu & shell"
+  one neos-menu "Terminal start menu (sections for code, internet, drivers...)"
+  one neos-fetch "System info banner (neofetch-style ASCII logo)"
+  one neos-help  "This command reference"
+
+  heading "Packages & system"
+  one pkg        "Termux-style package manager over apt (install/search/upgrade)"
+  one neos-update "Plan-first system updater"
+  one neos-where  "Find which package provides a command/file"
+  one neos-drivers "Hardware driver installer (GPU, wifi, bluetooth, firmware)"
+  one neos-ports  "List listening services + owning packages"
+  one neos-backup "Back up configs + installed-package list"
+  one neos-serve  "Quick HTTP file sharing server (with upload option)"
+
+  heading "Users"
+  one neos-users  "User manager: add (normal/Admin), delete, passwd, autologin"
+  one neos-guest  "Disposable guest account: enable/disable/remove/status"
+
+  heading "Install & distros"
+  one neos-installer "Calamares graphical installer (write NeoOS to disk)"
+  one neos-distro  "Install/run other distros as proot containers"
+
+  heading "Graphics & Windows apps"
+  one neos-wayland "Start a Weston + XWayland Wayland session"
+  one neos-wine    "Run Windows console (.exe) apps in a Win10 prefix"
+  one neos-winetricks "Wine + Winetricks setup helper"
+  one neos-winevm  "Isolated 'Wine VMs' for Windows applications"
+
+  heading "NeoLIBs"
+  one neolibs     "Multi-version shared-library manager (use 'neolibs --help')"
+
+  printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\033[0m\n'
+}
+
+full_usage() {
+  local cmd="$1" f
+  for f in "$(dirname "$0")/$cmd" "$cmd"; do
+    if [[ -f "$f" ]]; then
+      echo "=== $cmd ==="
+      awk 'NR>1 && /^#/ { sub(/^# ?/,""); if (length) print "  " $0; next } /^#/ { next } /^[^#]/ { exit }' "$f" | head -30
+      return 0
+    fi
+  done
+  echo "neos-help: no such command '$cmd'"
+  return 1
+}
+
+summary_table() {
+  local cmd
+  printf '\033[1;36m%-18s\033[0m %s\n' 'COMMAND' 'SUMMARY'
+  printf '%s\n' '------------------------------------------------------------'
+  for cmd in \
+    neos-menu neos-fetch neos-help \
+    pkg neos-update neos-where neos-drivers neos-ports neos-backup neos-serve \
+    neos-users neos-guest \
+    neos-installer neos-distro \
+    neos-wayland neos-wine neos-winetricks neos-winevm \
+    neolibs; do
+    if [[ -f "$(dirname "$0")/$cmd" ]] || command -v "$cmd" >/dev/null 2>&1; then
+      summary=$(grep -m1 '^# [a-z].* —' "$(dirname "$0")/$cmd" 2>/dev/null | sed 's/^# //; s/ — /: /')
+      printf '  %-16s %s\n' "$cmd" "$summary"
+    fi
+  done
+}
+
+list_only() {
+  printf '%s\n' 'neos-menu neos-fetch neos-help pkg neos-update neos-where' \
+    'neos-drivers neos-ports neos-backup neos-serve neos-users neos-guest' \
+    'neos-installer neos-distro neos-wayland neos-wine neos-winetricks' \
+    'neos-winevm neolibs'
+}
+
+case "${1:-}" in
+  --list|-l)    list_only ;;
+  --all|-a)     summary_table ;;
+  --help|-h|"") overview ;;
+  *)            full_usage "$1" ;;
+esac
