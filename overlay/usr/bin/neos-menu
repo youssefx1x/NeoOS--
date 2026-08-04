@@ -196,6 +196,7 @@ system_menu() {
     "Update system"   "apt update && apt upgrade" \
     "Install packages" "apt install (prompt for name)" \
     "Remove packages" "apt remove (prompt for name)" \
+    "Install to disk" "Graphical Calamares installer (neos-installer)" \
     "Interactive shell" "Start a bash subshell (type exit to return)" \
     "Edit sources"    "nano /etc/apt/sources.list" \
     "Shutdown"        "Power off the machine" \
@@ -205,6 +206,7 @@ system_menu() {
     "Update system")    run_as_root apt update && run_as_root apt upgrade -y || pause;;
     "Install packages") read -r -p "packages: " pkgs; run_as_root apt install -y $pkgs 2>&1 || true; pause;;
     "Remove packages")  read -r -p "packages: " pkgs; run_as_root apt remove -y $pkgs 2>&1 || true; pause;;
+    "Install to disk")  neos-installer 2>&1 || pause;;
     "Interactive shell") bash;;
     "Edit sources")     run_as_root nano /etc/apt/sources.list 2>&1 || true;;
     "Shutdown")         run_as_root shutdown -h now 2>&1 || true; return 0;;

@@ -1,0 +1,16 @@
+# calamares — graphical OS installer for NeoOS
+# Requires a GUI session (Weston/XWayland) to run.
+calamares
+calamares-settings-debian
+rsync
+cryptsetup
+os-prober
+qml-module-qtquick-window2
+qml-module-qtquick2
+qml-module-qtquick-controls2
+qml-module-qtgraphicaleffects
+policykit-1
+pkexec
+# GUI session deps so the installer has a display
+weston
+xwayland

@@ -1,0 +1,39 @@
+---
+componentName: neoos
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 800px,580px
+windowPlacement: center
+
+strings:
+    productName:         "NeoOS"
+    shortProductName:    "NeoOS"
+    version:             13
+    shortVersion:        13
+    versionedName:       "NeoOS 13"
+    shortVersionedName:  "NeoOS 13"
+    bootloaderEntryName: "NeoOS"
+    productUrl:          "https://neoos.local"
+    supportUrl:          "https://neoos.local/support"
+    knownIssuesUrl:      "https://neoos.local/bugs"
+    releaseNotesUrl:     "https://neoos.local/releases"
+    donateUrl:           "https://neoos.local"
+
+sidebar: widget
+navigation: widget
+
+images:
+    productLogo:         "neos.svg"
+    productIcon:         "neos.svg"
+    productWelcome:      "welcome.svg"
+
+slideshow:               "show.qml"
+
+style:
+   SidebarBackground:        "#161a1d"
+   SidebarText:              "#e6edf3"
+   SidebarTextCurrent:       "#ffffff"
+   SidebarBackgroundCurrent: "#238636"
+
+slideshowAPI: 2

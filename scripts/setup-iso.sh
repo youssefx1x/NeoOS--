@@ -22,6 +22,25 @@ apt-get install -y \
   isc-dhcp-client \
   iproute2
 
+# Optionally include the Calamares graphical installer on the live media.
+# Set NEOS_INCLUDE_INSTALLER=1 to ship it (pulls a Qt6 GUI stack).
+if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]]; then
+  log "Installing Calamares installer (NEOS_INCLUDE_INSTALLER=1)"
+  # The package list is shipped into the rootfs by apply-overlay.sh.
+  # Fall back to a hardcoded set if it is not present.
+  if [[ -r /usr/lib/neos/packages.calamares ]]; then
+    xargs -r -a /usr/lib/neos/packages.calamares apt-get install -y
+  else
+    apt-get install -y calamares calamares-settings-debian rsync cryptsetup os-prober \
+      qml-module-qtquick-window2 qml-module-qtquick2 qml-module-qtquick-controls2 \
+      qml-module-qtgraphicaleffects policykit-1 pkexec weston xwayland
+  fi
+  # Ensure a desktop entry to launch the installer appears in the menu
+  if command -v calamares >/dev/null 2>&1; then
+    log "Calamares installer available: neos-installer"
+  fi
+fi
+
 # Regenerate initramfs with live-boot hook
 update-initramfs -k all -u || true
 

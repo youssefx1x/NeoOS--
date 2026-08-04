@@ -31,6 +31,10 @@ install -Dm0755 "$REPO_ROOT/neolibs/neolibs" "$ROOTFS/usr/bin/neolibs"
 install -Dm0644 "$REPO_ROOT/neolibs/README.md" "$ROOTFS/usr/share/doc/neolibs/README.md"
 install -Dm0644 "$REPO_ROOT/neolibs/COMPAT.md" "$ROOTFS/usr/share/doc/neolibs/COMPAT.md"
 
+# 2b. Ship the Calamares package list so neos-installer can install it on demand
+log "Shipping Calamares package list"
+install -Dm0644 "$REPO_ROOT/config/packages.calamares" "$ROOTFS/usr/lib/neos/packages.calamares" 2>/dev/null || true
+
 # 3. os-release branding
 cat > "$ROOTFS/etc/os-release" <<'EOF'
 PRETTY_NAME="NeoOS (Debian 13 trixie based)"
@@ -56,6 +60,7 @@ cat > "$ROOTFS/etc/motd" <<'EOF'
 
   Start menu ........ neos-menu
   Drivers ........... neos-drivers
+  Install to disk ... neos-installer
   NeoLIBs ........... neolibs --help
 
 EOF

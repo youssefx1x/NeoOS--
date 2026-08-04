@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="48" fill="#161a1d"/>
+  <rect x="32" y="48" width="192" height="160" rx="16" fill="#0d1117" stroke="#30363d" stroke-width="8"/>
+  <text x="52" y="100" font-family="monospace" font-size="24" fill="#238636">neoos@iso:~$</text>
+  <text x="52" y="140" font-family="monospace" font-size="24" fill="#e6edf3">neos-menu</text>
+  <text x="52" y="180" font-family="monospace" font-size="24" fill="#58a6ff"># ready to install</text>
+</svg>

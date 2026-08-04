@@ -13,11 +13,12 @@ experience on top of the standard Debian archive.
   |   neos-menu · neos-drivers · neos-wayland · neos-wine        |
   |   neos-winevm · neos-winetricks · pkg · neos-distro          |
   |   neos-fetch · neos-serve · neos-backup · neos-update        |
-  |   neos-ports · neos-where · neolibs · motd · os-release      |
+  |   neos-ports · neos-where · neos-installer · neolibs         |
+  |   motd · os-release · calamares branding                      |
   +---------------------------------------------------------------+
- |  Debian 13 (trixie) archive                                    |
- |  main + contrib + non-free-firmware                            |
- +---------------------------------------------------------------+
+  |  Debian 13 (trixie) archive                                    |
+  |  main + contrib + non-free-firmware                            |
+  +---------------------------------------------------------------+
 ```
 
 ## Build pipeline
@@ -36,6 +37,12 @@ experience on top of the standard Debian archive.
 5. **`scripts/build-proot.sh`** — produces a plain rootfs tarball
    (`build/neoos-proot-<arch>.tar.xz`) plus Termux-friendly resolv.conf for
    use with proot-distro on Android.
+6. **Installer (on demand)** — `neos-installer` installs Calamares + a
+   minimal Qt6/QML + Weston/XWayland GUI stack on first use (packages in
+   `config/packages.calamares`, shipped at `/usr/lib/neos/packages.calamares`)
+   and launches it against a NeoOS-branded `/etc/calamares/settings.conf`.
+   With `NEOS_INCLUDE_INSTALLER=1` the ISO build embeds the installer
+   directly into the live media instead.
 
 ## Components
 
@@ -55,9 +62,33 @@ A whiptail/dialog TUI with six sections:
   `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
   `neos-backup`, `pkg self-update`.
 - **System** — apt update/upgrade, package management, sources editor,
-  shutdown/reboot.
+  graphical installer (`neos-installer`), shutdown/reboot.
 
 It re-executes after each action (`main_menu` recursion) until *Quit*.
+
+### Graphical installer — `neos-installer` (`overlay/usr/bin/neos-installer`)
+
+NeoOS is terminal-first, so installing to disk from live media needs a GUI
+stack brought up on demand:
+
+- Ensures `calamares` + `calamares-settings-debian` and the Qt6/QML +
+  Weston/XWayland deps are installed (packages listed in
+  `config/packages.calamares`).
+- Writes `/etc/calamares/settings.conf`: a Debian-compatible install
+  sequence (partition, mount, unpackfs, machineid, fstab, users,
+  displaymanager, networkcfg, grubcfg, bootloader, initramfs, ...) with
+  `branding: neoos`. If the settings package already wrote the file, only
+  the `branding:` line is rewritten so the sequence tracks package config.
+- Starts a Weston + XWayland session (DRM backend when `/dev/dri/card0` is
+  writable, headless fallback otherwise) and runs `pkexec calamares`.
+- `--install` (deps only), `--check` (prerequisites), `--no-gui` (use an
+  existing display).
+
+Branding ships in `overlay/usr/share/calamares/branding/neoos/`
+(`branding.desc`, QML slideshow `show.qml`, `neos.svg`, `welcome.svg`) and
+is found via Calamares's branding search paths. Module lookup uses
+`modules-search: [ local, /usr/lib/calamares/modules ]` — `local` resolves
+to the Debian multiarch libdir (`/usr/lib/<arch>/calamares/modules`).
 
 ### Driver installer — `neos-drivers` (`overlay/usr/bin/neos-drivers`)
 

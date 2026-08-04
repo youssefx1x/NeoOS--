@@ -46,6 +46,10 @@ library.
 - **Distro installer** (`neos-distro`) — install Debian, Ubuntu, Alpine,
   Arch or any rootfs tarball/URL as isolated **proot containers**
   (no root, no reboot) for testing distros side-by-side.
+- **Graphical installer** (`neos-installer`) — Calamares (Qt6) based
+  installer that writes NeoOS to disk from the live media. Ships NeoOS
+  branding + a Debian-compatible install sequence; pulls the GUI stack in
+  on demand so the base system stays lean.
 - **Utility toolkit** — `neos-update` (plan-first updater),
   `neos-fetch` (neofetch-style banner), `neos-ports` (listening
   services + owning package), `neos-where` (which package owns a
@@ -98,10 +102,50 @@ overlay/             files injected into the rootfs
   usr/bin/neos-where     which package owns a command/file
   usr/bin/neos-serve     HTTP file share (with upload)
   usr/bin/neos-backup    config + package-list backup/restore
+  usr/bin/neos-installer graphical Calamares installer launcher
+  usr/share/calamares/branding/neoos/  NeoOS installer branding (branding.desc, QML slideshow, SVG logos)
+  etc/calamares/settings.conf          NeoOS Calamares install sequence
 neolibs/             the NeoLIBs tool (usr/bin/neolibs)
 proot-distro/        proot-distro plugin for Termux
 tests/               test suites (tests/test-neolibs.sh)
 build/               build artifacts (gitignored)
+```
+
+## Installer (`neos-installer`)
+
+NeoOS is terminal-first, but installing to real hardware from the live
+media needs a GUI. `neos-installer` brings up the pieces on demand:
+
+```sh
+neos-installer              # install Calamares + GUI stack, then launch
+neos-installer --install    # only install Calamares + GUI stack
+neos-installer --check      # verify prerequisites and exit
+neos-installer --no-gui     # run against an existing DISPLAY/Wayland
+```
+
+On first launch it:
+
+1. Installs `calamares`, `calamares-settings-debian` and a small Qt6/QML +
+   Weston/XWayland GUI stack (packages listed in
+   `config/packages.calamares`, shipped to the system at
+   `/usr/lib/neos/packages.calamares`).
+2. Writes a NeoOS-branded `/etc/calamares/settings.conf` with a
+   Debian-compatible install sequence (partition, mount, unpackfs, fstab,
+   grub, bootloader, initramfs, displaymanager, ...). If the settings
+   package already wrote it, only the `branding:` line is rewritten to
+   `neoos`, so the sequence stays robust across package config drift.
+3. Starts a Weston + XWayland session (DRM backend when a GPU is present,
+   headless fallback otherwise) and runs `pkexec calamares`.
+
+Installer branding (logos, slideshow, product name) ships in
+`overlay/usr/share/calamares/branding/neoos/`.
+
+The base rootfs stays lean: Calamares is installed on demand from the
+running system's apt sources. To embed it directly into the live media
+instead, build the ISO with:
+
+```sh
+NEOS_INCLUDE_INSTALLER=1 ./build.sh iso
 ```
 
 ## NeoLIBs
