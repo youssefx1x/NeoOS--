@@ -7,6 +7,11 @@ NeoOS is a terminal-first Linux distribution assembled from **Debian 13
 no custom kernel or fork of the archive; NeoOS layers a curated terminal
 experience on top of the standard Debian archive.
 
+**NeoOS 2.0** is the fully apt-updated, stable release: the rootfs is
+brought to current trixie/trixie-updates/trixie-security, broken dpkg state
+is repaired, and the version is bumped to 2.0 throughout
+(`os-release`, Calamares branding, motd, ISO boot menu).
+
 ```
   +---------------------------------------------------------------+
   |  NeoOS layer  (overlay/ + neolibs/)                          |

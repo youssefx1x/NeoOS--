@@ -1,6 +1,6 @@
 # NeoOS
 
-A terminal-first Linux distribution built on **Debian 13 (trixie)**.
+A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 2.0**, the fully apt-updated, stable release.
 
 NeoOS is a minimal, terminal-only operating system focused on development,
 networking and tinkering. It ships a **terminal start menu** (code
@@ -10,7 +10,7 @@ for installing and switching between multiple versions of the same shared
 library.
 
 ```
-      NeoOS — Debian 13 (trixie) terminal distribution
+      NeoOS 2.0 — Debian 13 (trixie) terminal distribution
       ┌─────────────────────────────────────────────────┐
       │  Code        updated code apps + toolchains     │
       │  Internet    browsers, messaging, network utils │

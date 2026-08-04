@@ -37,12 +37,12 @@ install -Dm0644 "$REPO_ROOT/config/packages.calamares" "$ROOTFS/usr/lib/neos/pac
 
 # 3. os-release branding
 cat > "$ROOTFS/etc/os-release" <<'EOF'
-PRETTY_NAME="NeoOS (Debian 13 trixie based)"
+PRETTY_NAME="NeoOS 2.0 (Debian 13 trixie based)"
 NAME="NeoOS"
 ID=neoos
 ID_LIKE=debian
-VERSION_ID="13"
-VERSION="13 (trixie)"
+VERSION_ID="2.0"
+VERSION="2.0 (trixie)"
 VERSION_CODENAME=trixie
 HOME_URL="https://neoos.local"
 SUPPORT_URL="https://neoos.local/support"
@@ -56,11 +56,12 @@ touch "$ROOTFS/etc/hostname"
 # 5. motd
 cat > "$ROOTFS/etc/motd" <<'EOF'
 
-  NeoOS — a Debian 13 terminal distribution
+  NeoOS 2.0 — a Debian 13 terminal distribution
 
   Start menu ........ neos-menu
   Drivers ........... neos-drivers
   Install to disk ... neos-installer
+  Users ............. neos-users
   NeoLIBs ........... neolibs --help
 
 EOF
