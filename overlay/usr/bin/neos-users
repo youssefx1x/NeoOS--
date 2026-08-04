@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# neos-users — NeoOS user & account manager.
+#
+#   neos-users list                       list users and their level
+#   neos-users add <name> [--admin]       create a user (admin = sudo group)
+#   neos-users delete <name>              delete a user + home
+#   neos-users passwd <name>              change a user's password
+#   neos-users groups <name>              show a user's groups
+#
+#   neos-users autologin <name|none>      auto-login a user on tty1 (systemd)
+#
+#   neos-users guest enable               create guest account + first-time
+#                                           TTY autologin to it (resets each
+#                                           login; safe to run repeatedly)
+#   neos-users guest disable              turn off guest autologin (keep account)
+#   neos-users guest remove               delete the guest account
+#   neos-users guest status               show guest account + autologin state
+#
+#   neos-users --help
+#
+# "Level" = group membership. On NeoOS (Debian) an admin user is a member of
+# the `sudo` group; a normal user is not. The built-in `neo` and `guest`
+# accounts are managed separately and ignored by `list`/`add`/`delete`.
+
+set -euo pipefail
+
+PROG="neos-users"
+GUEST_USER="guest"
+GUEST_MARKER="/var/lib/neos/.guest-firstdone"
+GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
+
+log()  { printf '\033[1;36m[%s]\033[0m %s\n' "$PROG" "$*"; }
+info(){ printf '\033[1;32m[%s]\033[0m %s\n' "$PROG" "$*"; }
+err()  { printf '\033[1;31m[%s]\033[0m %s\n' "$PROG" "$*" >&2; }
+
+need_root() {
+  if [[ $EUID -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then exec sudo "$0" "$@";
+    else err "run as root: $*"; exit 1; fi
+  fi
+}
+
+is_admin() { groups "$1" 2>/dev/null | grep -qw sudo; }
+
+user_level() {
+  local u="$1"
+  if is_admin "$u"; then
+    printf "admin"
+  else
+    printf "normal"
+  fi
+}
+
+# Users considered "system" and never shown by `list`.
+system_user() {
+  local u="$1"
+  local uid
+  uid=$(id -u "$u" 2>/dev/null || echo 65534)
+  (( uid < 1000 )) && return 0
+  # well-known non-login system accounts
+  case "$u" in
+    nobody|nogroup|systemd-*|syslog|message*|daemon|bin|sys|games|gnats|irc|list|mail|mmdvm|news|proxy|uucp|www-data|backup|_apt|rtkit|sd-bus-*) return 0;;
+  esac
+  return 1
+}
+
+list_users() {
+  log "NeoOS users (system users hidden)"
+  printf '%-16s %-8s %-8s %s\n' "USERNAME" "UID" "LEVEL" "GROUPS"
+  local uid level
+  while IFS=: read -r name _ uid _ _ _ _; do
+    system_user "$name" && continue
+    level=$(user_level "$name")
+    printf '%-16s %-8s %-8s %s\n' "$name" "$uid" "$level" "$(groups "$name" 2>/dev/null | cut -d: -f2- | tr -s ' ' ',')"
+  done < /etc/passwd
+}
+
+add_user() {
+  local name="$1" admin=0
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --admin) admin=1; shift;;
+      *) err "unknown option: $1"; exit 2;;
+    esac
+  done
+  need_root add_user "$@" "$name"
+  if id "$name" >/dev/null 2>&1; then
+    err "user '$name' already exists"; exit 1
+  fi
+  if [[ "$admin" -eq 1 ]]; then
+    # Create the user directly with the sudo group.
+    useradd -m -s /bin/bash -G sudo "$name"
+    info "created admin user '$name' (in group: sudo)"
+  else
+    useradd -m -s /bin/bash "$name"
+    info "created normal user '$name'"
+  fi
+  # Set a password interactively.
+  passwd "$name" 2>&1 || { err "password not set; user has no password"; return 0; }
+  log "user '$name' is ready."
+}
+
+delete_user() {
+  local name="$1"
+  [[ "$name" == "$GUEST_USER" || "$name" == "neo" || "$name" == "root" ]] && \
+    { err "refusing to delete reserved account: $name"; exit 1; }
+  need_root delete_user "$name"
+  if ! id "$name" >/dev/null 2>&1; then
+    err "user '$name' does not exist"; exit 1
+  fi
+  read -r -p "Delete user '$name' and their home directory? [y/N] " ans
+  [[ "$ans" =~ ^[Yy]$ ]] || { log "cancelled"; return 0; }
+  deluser --remove-home "$name" 2>&1 || true
+  info "deleted user '$name'."
+}
+
+passwd_user() {
+  local name="$1"
+  need_root passwd_user "$name"
+  id "$name" >/dev/null 2>&1 || { err "user '$name' does not exist"; exit 1; }
+  passwd "$name"
+}
+
+groups_user() {
+  local name="$1"
+  id "$name" >/dev/null 2>&1 || { err "user '$name' does not exist"; exit 1; }
+  log "groups for $name:"
+  id -nG "$name" | tr ' ' '\n' | sort | sed 's/^/  /'
+}
+
+# --- autologin on tty1 (systemd getty) ---
+set_autologin() {
+  local who="$1"
+  need_root set_autologin "$who"
+  mkdir -p "$GETTY_OVERRIDE_DIR"
+  if [[ "$who" == "none" ]]; then
+    rm -f "$GETTY_OVERRIDE_DIR/override.conf"
+    systemctl enable -q getty@tty1.service 2>/dev/null || true
+    log "autologin disabled on tty1."
+    return 0
+  fi
+  id "$who" >/dev/null 2>&1 || { err "no such user: $who"; exit 1; }
+  cat > "$GETTY_OVERRIDE_DIR/override.conf" <<EOF
+# NeoOS autologin on tty1 -> $who
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $who --noclear %I \$TERM
+EOF
+  # Reload + enable getty@tty1 so the change takes effect on the next boot.
+  systemctl daemon-reload 2>/dev/null || true
+  systemctl enable -q getty@tty1.service 2>/dev/null || true
+  info "tty1 will auto-login as '$who' on next boot."
+}
+
+# --- guest account + first-time autologin ---
+setup_guest_files() {
+  # One-time guest account skeleton: reset-on-login home, no password login.
+  useradd -m -s /bin/bash "$GUEST_USER" 2>/dev/null || \
+    { log "guest account already exists."; }
+  # Lock the password so the guest can't be entered via passwd (autologin only).
+  passwd -l "$GUEST_USER" 2>/dev/null || true
+  # Reset the guest home every login so nothing is persisted.
+  cat > /etc/profile.d/neos-guest-reset.sh <<EOF
+# NeoOS guest home reset: wipes the guest's home contents on each login so
+# the session is disposable. Only acts for the guest user.
+if [ "\$(id -un)" = "$GUEST_USER" ]; then
+  home="\$(getent passwd $GUEST_USER | cut -d: -f6)"
+  if [ -n "\$home" ] && [ "\$home" != "/" ]; then
+    find "\$home" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null
+    cp -a /etc/skel/. "\$home/" 2>/dev/null || true
+  fi
+fi
+EOF
+  chmod 0644 /etc/profile.d/neos-guest-reset.sh
+}
+
+guest_enable() {
+  need_root guest_enable
+  mkdir -p /var/lib/neos
+  if [[ ! -f "$GUEST_MARKER" ]]; then
+    log "first-time guest account setup."
+    setup_guest_files
+    touch "$GUEST_MARKER"
+    info "created guest account (home resets each login)."
+  else
+    # Account already created; ensure it still exists.
+    id "$GUEST_USER" >/dev/null 2>&1 || { setup_guest_files; touch "$GUEST_MARKER"; }
+  fi
+  # Enable autologin onto the guest (idempotent).
+  set_autologin "$GUEST_USER"
+  info "first-time auto-login onto guest account: enabled."
+  log "The guest account is disposable. Create a real user with: $PROG add <name> --admin"
+}
+
+guest_disable() {
+  set_autologin none
+  info "guest auto-login disabled (guest account kept)."
+  log "re-enable with: $PROG guest enable"
+}
+
+guest_remove() {
+  need_root guest_remove
+  id "$GUEST_USER" >/dev/null 2>&1 && { deluser --remove-home "$GUEST_USER" 2>/dev/null || true; info "guest account removed."; } \
+    || { log "guest account does not exist."; }
+  rm -f "$GUEST_MARKER" /etc/profile.d/neos-guest-reset.sh
+  set_autologin none
+  info "guest account + reset script removed."
+}
+
+guest_status() {
+  local present="no"
+  id "$GUEST_USER" >/dev/null 2>&1 && present="yes"
+  local autologin="none"
+  if [[ -f "$GETTY_OVERRIDE_DIR/override.conf" ]]; then
+    autologin=$(grep -oE -- '--autologin [^ ]+' "$GETTY_OVERRIDE_DIR/override.conf" | head -1 | awk '{print $2}')
+  fi
+  printf 'guest account      : %s\n' "$present"
+  printf 'tty1 autologin to  : %s\n' "${autologin:-none}"
+  printf 'first-time marker  : %s\n' "$( [[ -f "$GUEST_MARKER" ]] && echo yes || echo no )"
+}
+
+usage() {
+  sed -n '2,$p' "$0" | sed -n '1,/set -euo/p' | sed 's/^# \{0,1\}//' | sed '/^$/d; q'
+  cat <<'EOF'
+Usage:
+  neos-users list                       list users (name, uid, level, groups)
+  neos-users add <name> [--admin]       create user; --admin -> sudo group
+  neos-users delete <name>              delete user + home (not neo/guest/root)
+  neos-users passwd <name>              change password
+  neos-users groups <name>              show groups
+  neos-users autologin <name|none>      auto-login on tty1 on next boot
+  neos-users guest enable               create guest + first-time tty autologin
+  neos-users guest disable              disable guest autologin (keep account)
+  neos-users guest remove               delete guest account + reset script
+  neos-users guest status               show guest + autologin state
+EOF
+}
+
+cmd="${1:-}"
+[[ -z "$cmd" ]] && { usage; exit 0; }
+case "$cmd" in
+  list)                       list_users ;;
+  add) shift; add_user "$@" ;;
+  delete)  shift; delete_user "$1" ;;
+  passwd)  shift; passwd_user "$1" ;;
+  groups)  shift; groups_user "$1" ;;
+  autologin) shift; set_autologin "${1:-none}" ;;
+  guest)
+    sub="${2:-status}"
+    case "$sub" in
+      enable)   guest_enable ;;
+      disable)  guest_disable ;;
+      remove)   guest_remove ;;
+      status)   guest_status ;;
+      *) err "unknown guest subcommand: $sub"; usage; exit 2 ;;
+    esac
+    ;;
+  --help|-h|help) usage ;;
+  *) err "unknown command: $cmd"; usage; exit 2 ;;
+esac

@@ -21,10 +21,21 @@ require() {
 require grub-mkrescue
 require xorriso
 
+# Make sure the rootfs has a kernel + live-boot + grub layer. If not, run
+# setup-iso.sh inside the rootfs via chroot (build-helper). NEOS_INCLUDE_INSTALLER
+# is passed through to optionally embed the Calamares installer.
 if ! compgen -G "$NEOS_ROOTFS/boot/vmlinuz-*" >/dev/null; then
-  echo "rootfs does not contain a kernel yet: $NEOS_ROOTFS" >&2
-  echo "run scripts/setup-iso.sh inside the rootfs first" >&2
-  exit 1
+  if [[ -x "$REPO_ROOT/scripts/chroot-run.sh" ]] && [[ -f "$REPO_ROOT/scripts/setup-iso.sh" ]]; then
+    log "Preparing ISO rootfs (kernel/live-boot/grub) via chroot"
+    cp "$REPO_ROOT/scripts/setup-iso.sh" "$NEOS_ROOTFS/tmp/setup-iso.sh"
+    chmod +x "$NEOS_ROOTFS/tmp/setup-iso.sh"
+    "$REPO_ROOT/scripts/chroot-run.sh" "$NEOS_ROOTFS" /tmp/setup-iso.sh
+    rm -f "$NEOS_ROOTFS/tmp/setup-iso.sh"
+  else
+    echo "rootfs does not contain a kernel yet: $NEOS_ROOTFS" >&2
+    echo "run scripts/setup-iso.sh inside the rootfs (see scripts/chroot-run.sh)" >&2
+    exit 1
+  fi
 fi
 
 ISODIR="$REPO_ROOT/build/iso-staging"

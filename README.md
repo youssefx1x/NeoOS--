@@ -55,6 +55,9 @@ library.
   services + owning package), `neos-where` (which package owns a
   command/file), `neos-serve` (HTTP file share with upload),
   `neos-backup` (configs + package-list backup/restore).
+- **User manager** (`neos-users`) — create multiple users with two
+  levels (normal / Administrator), delete/passwd/groups, plus a
+  disposable `guest` account with first-time auto-login on tty1.
 - **Wayland support** — `neos-wayland` starts a Weston compositor with
   XWayland; Wayland apps (foot, wmenu) are one menu click away.
 - **Winetricks / Wine** — `neos-winetricks` bootstraps Wine, initializes a
@@ -69,7 +72,7 @@ library.
 # Build the root filesystem (Debian 13 trixie)
 ./build.sh rootfs
 
-# Build a bootable live ISO (requires root / chroot for kernel+grub)
+# Build a bootable live ISO (needs root; auto-chroots to add kernel/grub)
 ./build.sh iso
 
 # Build a proot-distro tarball for Termux (default: aarch64)
@@ -103,6 +106,8 @@ overlay/             files injected into the rootfs
   usr/bin/neos-serve     HTTP file share (with upload)
   usr/bin/neos-backup    config + package-list backup/restore
   usr/bin/neos-installer graphical Calamares installer launcher
+  usr/bin/neos-users     user manager (normal/admin levels, guest autologin)
+  usr/bin/neos-guest     guest-account front-end (neos-users guest ...)
   usr/share/calamares/branding/neoos/  NeoOS installer branding (branding.desc, QML slideshow, SVG logos)
   etc/calamares/settings.conf          NeoOS Calamares install sequence
 neolibs/             the NeoLIBs tool (usr/bin/neolibs)
@@ -110,6 +115,35 @@ proot-distro/        proot-distro plugin for Termux
 tests/               test suites (tests/test-neolibs.sh)
 build/               build artifacts (gitignored)
 ```
+
+## Users & accounts (`neos-users`)
+
+A small account manager for the terminal:
+
+```sh
+neos-users list                          # users: name, uid, level, groups
+neos-users add alice                     # normal user
+neos-users add bob --admin               # Administrator (sudo group)
+neos-users delete alice                  # remove a user + home
+neos-users passwd bob                    # change password
+neos-users groups bob                    # show groups
+
+neos-users guest enable                  # create guest + auto-login on tty1
+neos-users guest status                  # guest account + autologin state
+neos-users guest disable                 # keep guest, stop auto-login
+neos-users guest remove                  # delete guest account
+neos-guest status                        # same as neos-users guest status
+```
+
+- **Levels** — an *Administrator* is a member of the `sudo` group; a normal
+  user is not. `list` shows each user's level.
+- **First-time auto-login onto guest** — `guest enable` creates a disposable
+  `guest` account (password locked, home reset from `/etc/skel` on every
+  login) and installs a systemd `getty@tty1` override so the machine boots
+  straight into the guest account. A `/var/lib/neos/.guest-firstdone` marker
+  makes the one-time setup idempotent.
+- `neo`, `guest` and `root` are reserved: `delete` refuses them.
+- `autologin <name|none>` sets a regular TTY autologin for any user.
 
 ## Installer (`neos-installer`)
 

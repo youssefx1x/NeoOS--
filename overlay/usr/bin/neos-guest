@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# neos-guest — front-end for the guest-account part of neos-users.
+#   neos-guest enable|disable|remove|status
+# Locates neos-users whether called from PATH or by full/relative path.
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+if [[ -x "$DIR/neos-users" ]]; then
+  exec "$DIR/neos-users" guest "$@"
+else
+  exec neos-users guest "$@"
+fi

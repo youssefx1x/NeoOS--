@@ -190,6 +190,48 @@ tools_menu() {
   esac
 }
 
+users_menu() {
+  local choice name
+  choice=$(BOX "NeoOS - Users" "Account management (root required)" 20 70 9 \
+     "List users"        "neos-users list" \
+     "Add user"          "Create a normal or admin user" \
+     "Add admin user"    "Create a user with sudo (Administrator)" \
+     "Delete user"       "Delete a user and home" \
+     "Change password"   "neos-users passwd <name>" \
+     "Guest account"     "Enable/disable/remove guest + autologin" \
+     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "List users")       run_as_root neos-users list 2>&1 || true;;
+    "Add user")         read -r -p "username: " name && run_as_root neos-users add "$name" 2>&1 || true;;
+    "Add admin user")   read -r -p "username: " name && run_as_root neos-users add "$name" --admin 2>&1 || true;;
+    "Delete user")      read -r -p "username: " name && run_as_root neos-users delete "$name" 2>&1 || true;;
+    "Change password")  read -r -p "username: " name && run_as_root neos-users passwd "$name" 2>&1 || true;;
+    "Guest account")    guest_menu;;
+    *) return 0;;
+  esac
+  pause
+  users_menu
+}
+
+guest_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Guest" "Disposable guest + first-time autologin" 16 70 6 \
+     "Guest status"     "Show guest account + autologin state" \
+     "Enable guest"     "Create guest account + auto-login on tty1" \
+     "Disable autologin" "Keep guest account, stop auto-login" \
+     "Remove guest"     "Delete guest account + reset script" \
+     "Back" "Return to Users menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "Guest status")     run_as_root neos-users guest status 2>&1 || true;;
+    "Enable guest")     run_as_root neos-users guest enable 2>&1 || true;;
+    "Disable autologin")run_as_root neos-users guest disable 2>&1 || true;;
+    "Remove guest")     run_as_root neos-users guest remove 2>&1 || true;;
+    *) return 0;;
+  esac
+  pause
+  guest_menu
+}
+
 system_menu() {
   local choice
   choice=$(BOX "NeoOS - System" "System administration" 22 70 12 \
@@ -197,6 +239,7 @@ system_menu() {
     "Install packages" "apt install (prompt for name)" \
     "Remove packages" "apt remove (prompt for name)" \
     "Install to disk" "Graphical Calamares installer (neos-installer)" \
+    "Users" "Manage users: create normal/Admin, guest account, autologin" \
     "Interactive shell" "Start a bash subshell (type exit to return)" \
     "Edit sources"    "nano /etc/apt/sources.list" \
     "Shutdown"        "Power off the machine" \
@@ -207,6 +250,7 @@ system_menu() {
     "Install packages") read -r -p "packages: " pkgs; run_as_root apt install -y $pkgs 2>&1 || true; pause;;
     "Remove packages")  read -r -p "packages: " pkgs; run_as_root apt remove -y $pkgs 2>&1 || true; pause;;
     "Install to disk")  neos-installer 2>&1 || pause;;
+    "Users")            users_menu;;
     "Interactive shell") bash;;
     "Edit sources")     run_as_root nano /etc/apt/sources.list 2>&1 || true;;
     "Shutdown")         run_as_root shutdown -h now 2>&1 || true; return 0;;

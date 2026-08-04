@@ -13,8 +13,8 @@ experience on top of the standard Debian archive.
   |   neos-menu · neos-drivers · neos-wayland · neos-wine        |
   |   neos-winevm · neos-winetricks · pkg · neos-distro          |
   |   neos-fetch · neos-serve · neos-backup · neos-update        |
-  |   neos-ports · neos-where · neos-installer · neolibs         |
-  |   motd · os-release · calamares branding                      |
+  |   neos-ports · neos-where · neos-installer · neos-users      |
+  |   neos-guest · neolibs · motd · os-release · calamares branding |
   +---------------------------------------------------------------+
   |  Debian 13 (trixie) archive                                    |
   |  main + contrib + non-free-firmware                            |
@@ -32,8 +32,12 @@ experience on top of the standard Debian archive.
 3. **`scripts/setup-iso.sh`** — runs inside the rootfs via chroot: installs
    kernel, initramfs, live-boot, grub files; creates the `neo` user and
    hooks `.profile` to drop into the start menu.
-4. **`scripts/build-iso.sh`** — packs the rootfs into a squashfs, assembles
-   a bootable ISO with `grub-mkrescue` + `xorriso` (live boot menu).
+4. **`scripts/build-iso.sh`** — if the rootfs has no kernel yet, runs
+   `scripts/setup-iso.sh` inside the rootfs via `scripts/chroot-run.sh`
+   (bind-mounts `/proc`,`/sys`,`/dev`,`/dev/pts`, copies `resolv.conf`, then
+   chroots; unmounts on exit). Packs the rootfs into a squashfs and
+   assembles a bootable ISO with `grub-mkrescue` + `xorriso` (live boot
+   menu).
 5. **`scripts/build-proot.sh`** — produces a plain rootfs tarball
    (`build/neoos-proot-<arch>.tar.xz`) plus Termux-friendly resolv.conf for
    use with proot-distro on Android.
@@ -62,9 +66,29 @@ A whiptail/dialog TUI with six sections:
   `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
   `neos-backup`, `pkg self-update`.
 - **System** — apt update/upgrade, package management, sources editor,
-  graphical installer (`neos-installer`), shutdown/reboot.
+  graphical installer (`neos-installer`), user manager (`neos-users`),
+  shutdown/reboot.
 
 It re-executes after each action (`main_menu` recursion) until *Quit*.
+
+### User manager — `neos-users` / `neos-guest` (`overlay/usr/bin/`)
+
+Terminal-first account management:
+
+- `neos-users add <name> [--admin]` — creates a user; `--admin` adds the
+  `sudo` group (Administrator level on Debian). `list` shows name, UID,
+  level (admin/normal) and groups; `delete`/`passwd`/`groups` round it out.
+  `neo`, `guest` and `root` are reserved.
+- `neos-users guest enable` — creates a disposable `guest` account with a
+  locked password and a `/etc/profile.d/neos-guest-reset.sh` hook that
+  wipes + re-seeds the guest home from `/etc/skel` on every login, then
+  writes a systemd `getty@tty1` override (`agetty --autologin guest`) so the
+  machine boots straight into the guest session. A
+  `/var/lib/neos/.guest-firstdone` marker makes the one-time setup
+  idempotent. `guest disable|remove|status` manage it afterwards.
+- `neos-guest` is a thin wrapper that forwards to `neos-users guest ...`.
+- `neos-users autologin <name|none>` sets/removes a TTY autologin for any
+  user.
 
 ### Graphical installer — `neos-installer` (`overlay/usr/bin/neos-installer`)
 
