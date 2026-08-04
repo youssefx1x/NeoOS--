@@ -6,7 +6,6 @@ The setup
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
 ![Version](https://img.shields.io/badge/version-v1.0.0--beta-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-orange)
-![ISO Size](https://img.shields.io/badge/ISO_Size-2.23_GB-lightgrey)
 
 **Neoos** is a highly modular, lightweight Debian-based hybrid operating system designed for desktop environments and embedded/mobile Proot containers. It features a custom toolchain, native Wayland support, pre-configured Windows app compatibility, and a fully branded Calamares installation wizard.
 
