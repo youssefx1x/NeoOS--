@@ -58,6 +58,7 @@ workspace/
 ├── Makefile             # Main execution makefile
 ├── build.sh             # Master build launcher script
 └── README.md
+```
 🛠️ Building Neoos
 ​Prerequisites
 ​Make sure you have the required build tools installed on your host system:
@@ -80,7 +81,6 @@ sudo ./scripts/build-proot.sh
 🧪 Testing & Verification
 ​Run the neolibs test suite to ensure system library compatibility:
 ./tests/test-neolibs.sh
-
 
 
 
