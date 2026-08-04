@@ -46,6 +46,26 @@ While Debian provides rock-solid stability, it requires significant manual post-
 | **OTA System Update Pipeline** | 🗓️ Planned | Centralized binary repository updating via `neos-update` |
 
 ---
+# 🗺️ Development Roadmap
+​Phase 1: Foundation (Current - v1.0.0-beta)
+​✅ Automated Rootfs compilation pipeline.
+​✅ Custom Calamares GUI installer integration.
+​🧪 Native neos-* CLI helper suite.
+​Phase 2: Compatibility & Hardware (v1.1.0 - Upcoming)
+​🧪 Automated GPU/Wi-Fi driver detection script.
+​🧪 Stable WineVM sandboxing for Windows apps.
+​🗓️ Mobile touch gestures optimization for Proot display.
+​Phase 3: Ecosystem & Infrastructure (v2.0.0 - Planned)
+​🗓️ Centralized NeoOS package repository & mirror endpoints.
+​🗓️ One-click OTA distribution updates via neos-update.
+
+# ​🐛 Known Issues (Beta)
+​NVIDIA Proprietary Drivers: Wayland session may require fallback execution on select older NVIDIA hardware.
+​Wine Prefix Initialization: First run of neos-winevm requires 30–60 seconds to configure the wine prefix environment.
+​Termux Audio Server: Sound output inside Proot mobile mode requires starting PulseAudio manually inside Termux.
+
+
+
 
 ## 🛠️ NeoOS CLI Toolchain & Examples
 
