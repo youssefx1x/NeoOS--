@@ -17,7 +17,7 @@ The setup
 *   **📱 Hybrid Target Support:** Built to compile both bootable Live ISO images for PCs and rootfs tarballs for Android/Termux environments (`proot-distro/neoos.sh`).
 *   **🍷 Pre-configured Windows Compatibility:** Integrated out-of-the-box support for Windows applications using `neos-wine`, `neos-winetricks`, and `neos-winevm`.
 *   **🎨 Custom Calamares Installer:** Includes customized installer configurations (`settings.conf`) and full branding assets (`branding.desc`, `show.qml`, SVG icons).
-*   **⚡ Lightweight & Fast:** Optimized package selection across base, wayland, devel, and internet configurations, creating a full-featured system inside a ~2.23 GB ISO.
+*   **⚡ Lightweight & Fast:** Optimized package selection across base, wayland, devel, and internet configurations, creating a full-featured system inside a ~1 GB ISO.
 
 NeoOS equips you with a full suite of custom binaries designed to replace bloated commands with fast, intuitive CLI utilities:
 
