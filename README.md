@@ -4,7 +4,7 @@ The setup
 # 🌌 Neoos (Neolinux)
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Version](https://img.shields.io/badge/version-v1.0.0--beta-blue)
+![Version](https://img.shields.io/badge/version-v1.0.1--Stable-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-orange)
 
 **Neoos** is a highly modular, lightweight Debian-based hybrid operating system designed for desktop environments and embedded/mobile Proot containers. It features a custom toolchain, native Wayland support, pre-configured Windows app compatibility, and a fully branded Calamares installation wizard.
@@ -18,6 +18,55 @@ The setup
 *   **🍷 Pre-configured Windows Compatibility:** Integrated out-of-the-box support for Windows applications using `neos-wine`, `neos-winetricks`, and `neos-winevm`.
 *   **🎨 Custom Calamares Installer:** Includes customized installer configurations (`settings.conf`) and full branding assets (`branding.desc`, `show.qml`, SVG icons).
 *   **⚡ Lightweight & Fast:** Optimized package selection across base, wayland, devel, and internet configurations, creating a full-featured system inside a ~2.23 GB ISO.
+
+NeoOS equips you with a full suite of custom binaries designed to replace bloated commands with fast, intuitive CLI utilities:
+
+### 🤖 Core System & AI Integrations
+* `neos` – Main unified CLI controller and launcher for the OS.
+* `neos-ai` – Terminal AI assistant interface driven by `/etc/neos/ai.conf`.
+* `neos-gui` – Graphical interface launcher and session controller.
+* `pkg` – Universal simplified wrapper for package management (`apt` helper).
+
+### 🛠️ System Health, Diagnostics & Maintenance
+* `neos-health` – Complete system health check and diagnostic suite.
+* `neos-clean` – Cleans system caches, temp files, and orphan packages.
+* `neos-disk` – Disk usage analyzer and filesystem monitoring.
+* `neos-monitor` – Real-time resource monitor (CPU, RAM, Processes).
+* `neos-battery` – Power management, battery health, and power profiles.
+* `neos-backup` – Fast system snapshot and configuration archiver.
+* `neos-update` – Complete system upgrade and mirror synchronizer.
+* `neos-drivers` – Automatic hardware and GPU driver detection tool.
+* `neos-users` – User accounts, groups, and permissions manager.
+* `neos-guest` – Quick guest session sandbox launcher.
+
+### 🌐 Network & Connectivity Utilities
+* `neos-net` – Network interface status and configuration tool.
+* `neos-ip` – Instant display of local and public IP addresses.
+* `neos-speedtest` – CLI internet bandwidth speed testing.
+* `neos-ports` – Active listening ports and network sockets monitor.
+* `neos-serve` – Instant local HTTP file server launcher.
+
+### ⚡ Productivity & Everyday Utilities
+* `neos-help` – Interactive manual and guide for all `neos-*` commands.
+* `neos-new` – Scaffold new projects and templates from terminal.
+* `neos-notes` – Fast CLI quick notes manager.
+* `neos-todo` – Lightweight terminal to-do list manager.
+* `neos-calc` – Fast command-line calculator.
+* `neos-timer` – Terminal stopwatch and countdown timer.
+* `neos-lang` – Fast system language and keyboard layout switcher.
+* `neos-start` – Startup applications and autostart services manager.
+* `neos-fortune` – Quick quotes and tips generator.
+* `neos-fetch` – NeoOS customized system information fetcher.
+* `neos-where` – Locates system binary sources and configs.
+
+### 🎮 Compatibility & Installation Layer
+* `neos-wine` – Wine launcher wrapper for Windows executables.
+* `neos-winetricks` – Quick launcher for Wine library dependencies.
+* `neos-winevm` – Isolated sandbox environment for running Windows applications.
+* `neos-wayland` – Wayland compositor configuration and session tools.
+* `neos-installer` – Calamares GUI installer launcher.
+* `neos-menu` – Terminal application menu and launcher.
+* `neos-distro` – Distribution release and kernel info utility.
 
 ---
 
@@ -41,28 +90,28 @@ While Debian provides rock-solid stability, it requires significant manual post-
 | **Custom Maintenance CLI Toolchain** | ✅ Available | Native utilities for system management (`/usr/bin/neos-*`) |
 | **Calamares GUI Installer** | ✅ Available | Full installer integration with custom branding |
 | **Proot Mobile Environment** | ✅ Available | Android/Termux deployment wrapper (`proot-distro/neoos.sh`) |
-| **Wine / WineVM Integration** | 🚧 In Progress | Automated pre-configured environment for Windows apps |
-| **Automated Driver Detection** | 🚧 In Progress | Hardware-specific GPU/Wi-Fi driver setup (`neos-drivers`) |
-| **OTA System Update Pipeline** | 🗓️ Planned | Centralized binary repository updating via `neos-update` |
+| **Wine / WineVM Integration** | ✅️ Avaiable | Automated pre-configured environment for Windows apps |
+| **Automated Driver Detection** | ✅️ Available | Hardware-specific GPU/Wi-Fi driver setup (`neos-drivers`) |
+| **OTA System Update Pipeline** | ✅️ Available | Centralized binary repository updating via `neos-update` |
 
 ---
 # 🗺️ Development Roadmap
 ​Phase 1: Foundation (Current - v1.0.0-beta)
 ​✅ Automated Rootfs compilation pipeline.
 ​✅ Custom Calamares GUI installer integration.
-​🧪 Native neos-* CLI helper suite.
+​✅️Native neos-* CLI helper suite.
 ​Phase 2: Compatibility & Hardware (v1.1.0 - Upcoming)
-​🧪 Automated GPU/Wi-Fi driver detection script.
-​🧪 Stable WineVM sandboxing for Windows apps.
-​🗓️ Mobile touch gestures optimization for Proot display.
+​✅️ Automated GPU/Wi-Fi driver detection script.
+​✅️ Stable WineVM sandboxing for Windows apps.
+​🧪 Mobile touch gestures optimization for Proot display.
 ​Phase 3: Ecosystem & Infrastructure (v2.0.0 - Planned)
-​🗓️ Centralized NeoOS package repository & mirror endpoints.
+​🧪 Centralized NeoOS package repository & mirror endpoints.
 ​🗓️ One-click OTA distribution updates via neos-update.
 
 # ​🐛 Known Issues (Beta)
-​NVIDIA Proprietary Drivers: Wayland session may require fallback execution on select older NVIDIA hardware.
-​Wine Prefix Initialization: First run of neos-winevm requires 30–60 seconds to configure the wine prefix environment.
-​Termux Audio Server: Sound output inside Proot mobile mode requires starting PulseAudio manually inside Termux.
+​NVIDIA Proprietary Drivers: Wayland session may require fallback execution on select older NVIDIA hardware.[Solved]
+​Wine Prefix Initialization: First run of neos-winevm requires 30–60 seconds to configure the wine prefix environment.[Not yet]
+​Termux Audio Server: Sound output inside Proot mobile mode requires starting PulseAudio manually inside Termux.[Solved]
 
 
 
