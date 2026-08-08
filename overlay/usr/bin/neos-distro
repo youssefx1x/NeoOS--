@@ -149,21 +149,27 @@ install_tarball() {
 }
 
 cmd_install() {
-  local spec="${1:-}" name="" opts=()
+  local spec="" name="" opts=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --name) name="$2"; shift 2 ;;
-      *) opts+=("$1"); shift ;;
+      --) shift; [[ $# -ge 1 ]] && spec="$1"; shift ;;
+      *) opts+=("$1"); [[ -z "$spec" ]] && spec="$1"; shift ;;
     esac
   done
   [[ -n "$spec" ]] || { err "usage: neos-distro install <distro|tarball|url> [--name name]"; exit 2; }
+  case "$spec" in
+    debian|ubuntu|alpine|arch) : ;;
+    http://*|https://*|ftp://*) : ;;
+    *) [[ -f "$spec" ]] || { err "source not found: '$spec' (expected a distro name, a URL, or an existing tarball)"; exit 2; } ;;
+  esac
   local dflt
   case "$spec" in
     debian|ubuntu|alpine|arch) dflt="$spec" ;;
-    *) dflt=$(basename "$spec"); dflt="${dflt%%.*}" ;;
+    *) dflt=$(basename -- "$spec"); dflt="${dflt%%.*}"; dflt="${dflt:-neoos}" ;;
   esac
   name="${name:-$dflt}"
-  [[ -d "$NEOS_DISTRO_ROOT/$name" ]] && { err "'$name' already exists"; exit 1; }
+  [[ -d "$NEOS_DISTRO_ROOT/$name" ]] && { err "'$name' already exists (remove it first or choose --name)"; exit 1; }
   case "$spec" in
     debian) install_debian "$name" "$DEBIAN_SUITE" ;;
     ubuntu) install_ubuntu "$name" "$UBUNTU_SUITE" ;;
