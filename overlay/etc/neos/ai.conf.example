@@ -1,0 +1,25 @@
+# /etc/neos/ai.conf — NeoOS AI helper (neos-ai) configuration.
+# Source this from your shell init, or copy to ~/.config/neos/ai.sh and source
+# it from ~/.bashrc / ~/.zshrc. NEVER commit real secrets to this file.
+#
+# neos-ai ships with NO API key and a default LOCAL model, so you can stay
+# fully offline and private. Pick one backend:
+
+# ---- Backend A: LOCAL GGUF model (offline, no key needed) ----
+#   Download e.g. Qwen2.5-0.5B-Instruct Q4_K_M (GGUF) and point:
+NEOS_AI_BIN=/usr/local/bin/llama-cli        # auto-detected if unset
+NEOS_AI_MODEL="$HOME/models/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+NEOS_AI_TEMPERATURE=0.0
+NEOS_AI_MAX_TOKENS=512
+
+# ---- Backend B: HTTP chat API (openai-compatible /chat/completions) ----
+#   Set ONLY if you run a local server or a remote endpoint you manage.
+#   This reads a PROJECT key you provide yourself — NeoOS never accesses
+#   platform/agent credentials.
+# NEOS_AI_URL=https://ai.example.com/v1
+# NEOS_AI_API_KEY=your-api-key-here
+# NEOS_AI_TEMPERATURE=0.2
+# NEOS_AI_MAX_TOKENS=512
+
+# How long to wait for an answer (seconds):
+NEOS_AI_TIMEOUT=60

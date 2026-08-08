@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# /etc/network/if-up.d/neos-uranium-suggest
+# Triggered by ifupdown/NetworkManager when an interface (Ethernet, Wi-Fi, or
+# USB tethering) transitions to the UP state. Runs `neos-uranium suggest` and
+# broadcasts a one-line driver recommendation so users see it right after they
+# go online — and therefore know to run the one-tap `neos-uranium install`.
+set -euo pipefail
+
+[[ -x /usr/bin/neos-uranium ]] || exit 0
+# Skip loopback and interfaces with no carrier.
+[[ "$IFACE" == "lo" ]] && exit 0
+if [[ -n "${IF_PLADR:-}${IF_ADDRESSES:-}" ]]; then :; fi
+
+# Rate-limit: at most one suggestion per minute per interface.
+stamp="/var/lib/neos/.uranium-suggest-${IFACE:-net}"
+mkdir -p "$(dirname "$stamp")" 2>/dev/null || true
+if [[ -f "$stamp" ]] && find "$stamp" -mmin -1 2>/dev/null 2>&1 | grep -q .; then
+  exit 0
+fi
+: > "$stamp" 2>/dev/null || true
+
+out="$(/usr/bin/neos-uranium --quiet suggest 2>/dev/null \
+       | grep -E 'firmware-|nvidia-driver|amdgpu|e1000|r8169|b43|brcm|iwlwifi|^wl|tg3|ixgbe' || true)"
+
+if [[ -n "$out" ]]; then
+  msg='run "neos-uranium install" to install these drivers (one tap)'
+  printf '[neoos] Network up (%s). Suggested: %s - %s\n' "$IFACE" "$out" "$msg" \
+    >> /var/log/neos-uranium.log 2>/dev/null || true
+  command -v wall >/dev/null 2>&1 \
+    && printf '[neoos] Network is up (%s). Suggested drivers: %s\n' "$IFACE" "$out" | wall || true
+fi

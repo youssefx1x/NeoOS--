@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# neos-sensors — hardware temperatures and fan speeds
+set -euo pipefail
+found=0
+while IFS= read -r base; do
+  name="$(cat "$base/name" 2>/dev/null || echo unknown)"
+  for f in "$base"/temp*_input; do
+    [[ -e "$f" ]] || continue
+    t=$(( $(cat "$f") / 1000 ))
+    label="$(cat "${f%_input}_label" 2>/dev/null || echo "$name-$(basename "${f%_input}")")"
+    printf '%-22s %dC\n' "$label" "$t"
+    found=1
+  done
+  for f in "$base"/fan*_input; do
+    [[ -e "$f" ]] || continue
+    printf '%-22s %d RPM\n' "$name-$(basename "${f%_input}")" "$(cat "$f")"
+    found=1
+  done
+done < <(find /sys/class/hwmon -maxdepth 1 -mindepth 1 -type d 2>/dev/null)
+[[ $found -eq 0 ]] && echo "neos-sensors: no readable hwmon sensors"

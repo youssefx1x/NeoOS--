@@ -52,16 +52,20 @@ install() {
     echo "neos-lang: unknown toolchain '$lang' (see: neos-lang available)"
     return 1
   fi
-  echo "Installing $lang: $pkgs"
-  run_root apt update && run_root apt install -y $pkgs
+  local pkg_arr=()
+  read -r -a pkg_arr <<< "$pkgs"
+  echo "Installing $lang: ${pkg_arr[*]}"
+  run_root apt update && run_root apt install -y "${pkg_arr[@]}"
 }
 
 remove() {
   local lang="$1"
   local pkgs="${PKG_MAP[$lang]:-}"
   [[ -n "$pkgs" ]] || { echo "neos-lang: unknown toolchain '$lang'"; return 1; }
-  echo "Removing $lang: $pkgs"
-  run_root apt remove -y $pkgs || true
+  local pkg_arr=()
+  read -r -a pkg_arr <<< "$pkgs"
+  echo "Removing $lang: ${pkg_arr[*]}"
+  run_root apt remove -y "${pkg_arr[@]}" || true
 }
 
 case "${1:-}" in

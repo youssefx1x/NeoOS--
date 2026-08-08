@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-whiskermenu" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="button-title" type="string" value="  Applications"/>
+  <property name="button-icon" type="string" value="start-here"/>
+  <property name="button-single-linemode" type="bool" value="false"/>
+  <property name="menu-opacity" type="int" value="95"/>
+  <property name="show-generic-names" type="bool" value="false"/>
+  <property name="show-all-applications" type="bool" value="false"/>
+  <property name="favorite" type="empty">
+    <property name="0" type="string" value="exo-open --launch FileManager"/>
+    <property name="1" type="string" value="exo-open --launch TerminalEmulator"/>
+    <property name="2" type="string" value="exo-open --launch SettingsManager"/>
+  </property>
+  <property name="recent-mode" type="int" value="1"/>
+  <property name="recent-limit" type="int" value="8"/>
+  <property name="position" type="int" value="1"/>
+</channel>

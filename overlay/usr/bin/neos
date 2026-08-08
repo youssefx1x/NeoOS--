@@ -1,0 +1,340 @@
+#!/usr/bin/env bash
+# neos — NeoOS umbrella command ("One Command, Full Action").
+#
+#   neos help             list available subcommands
+#   neos doctor [--fix]   NeoPulse: human-readable system health + repair (#8/#11)
+#   neos clean [--apply]  free disk space by cleaning caches/logs/temp (#4)
+#   neos fix              recover from common breakage (dpkg/apt autoremove) (#11)
+#   neos launch [<proj>]  enter/create a project Capsule workspace (#2/#10)
+#   neos suggest [--history N]  terminal memory + intent hints (#9/#13)
+#
+# Most subcommands delegate to dedicated NeoOS tools (neos-health, neos-clean)
+# so behaviour stays consistent; `neos` adds the "one command" entry point and
+# the human-readable NeoPulse narration.
+
+set -uo pipefail
+
+NEOS_CAPSULES="${NEOS_CAPSULES:-$HOME/.local/share/neos/capsules}"
+
+# --- shared helpers --------------------------------------------------------
+
+log()  { printf '\033[1;36m[neos]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[neos]\033[0m %s\n' "$*" >&2; }
+err()  { printf '\033[1;31m[neos]\033[0m %s\n' "$*" >&2; }
+
+need() { # need <cmd>
+  command -v "$1" >/dev/null 2>&1 || { err "required tool not found: $1"; return 127; }
+}
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# --- subcommand: doctor ----------------------------------------------------
+
+_pulse_memory() {
+  if [[ ! -r /proc/meminfo ]]; then echo "  memory: unable to read /proc/meminfo"; return; fi
+  local mem_total mem_avail used pct
+  read -r _ mem_total _ < <(awk '/^MemTotal:/ {print; exit}' /proc/meminfo)
+  read -r _ mem_avail _ < <(awk '/^MemAvailable:/ {print; exit}' /proc/meminfo)
+  (( mem_total > 0 )) || return 0
+  used=$((mem_total - mem_avail))
+  pct=$((used * 100 / mem_total))
+  if (( pct > 85 )); then
+    echo "  memory: RAM usage is under pressure ($pct% used)."
+  else
+    echo "  memory: RAM usage is normal ($pct% used)."
+  fi
+}
+
+_pulse_disk() {
+  local total used pct
+  # Use df on the root mount point — works for /dev, overlay, tmpfs, etc.
+  read -r total used _ < <(df -P / 2>/dev/null | awk 'NR==2{print $2,$3}')
+  (( total > 0 )) || { echo "  disk: unable to determine root usage."; return; }
+  pct=$((used * 100 / total))
+  if (( pct > 90 )); then
+    echo "  disk: root filesystem is almost full ($pct% used — free some space)."
+  else
+    echo "  disk: root filesystem is healthy ($pct% used)."
+  fi
+}
+
+_pulse_load() {
+  if [[ ! -r /proc/loadavg ]]; then return 0; fi
+  local load1 ncpu
+  read -r load1 _ < /proc/loadavg
+  ncpu="$(nproc 2>/dev/null || echo 1)"
+  # crude: load1 > ncpu => saturated
+  awk -v l="$load1" -v n="$ncpu" 'BEGIN{exit !(l>2*n)}' \
+    && echo "  load: system is busy (1-min load $load1 on $ncpu cores)." \
+    || echo "  load: system is idle (1-min load $load1 on $ncpu cores)."
+}
+
+_pulse_temp() {
+  local tz temp
+  for tz in /sys/class/thermal/thermal_zone*/temp; do
+    [[ -r "$tz" ]] || continue
+    read -r temp < "$tz"
+    temp=$((temp / 1000))
+    (( temp > 80 )) && echo "  cooling: temperature is high (${temp}C)." \
+                     || echo "  cooling: temperature is healthy (${temp}C)."
+    return 0
+  done
+  echo "  cooling: no thermal sensor readable."
+}
+
+_pulse_network() {
+  local target="https://deb.debian.org" ok=0
+  if have curl; then
+    curl -fsS --max-time 5 -o /dev/null "$target" 2>/dev/null && ok=1
+  elif have ping; then
+    ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1 && ok=1
+  fi
+  if (( ok )); then echo "  network: internet reachability is fine.";
+  else echo "  network: internet reachability looks down."; fi
+}
+
+pulse_report() {
+  echo
+  printf '\033[1;36mNeoPulse — system pulse\033[0m\n'
+  _pulse_memory
+  _pulse_load
+  _pulse_disk
+  _pulse_temp
+  _pulse_network
+}
+
+cmd_doctor() {
+  local fix=0 ai=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fix) fix=1; shift ;;
+      --ai)  ai=1;  shift ;;
+      *)     err "unknown option: $1"; return 2 ;;
+    esac
+  done
+
+  # Collect the NeoPulse report + health-check findings into one buffer.
+  local report
+  report="$(pulse_report)"$'\n'
+  report+="$(log "Running NeoOS health checks...")"$'\n'
+  if have neos-health; then
+    report+="$(neos-health ${fix:+--fix} 2>&1 || true)"$'\n'
+  elif (( fix )); then
+    report+="$(warn "neos-health is not installed; running 'neos fix' recovery instead."; cmd_fix 2>&1 || true)"$'\n'
+  else
+    report+="$(warn "neos-health is not installed; NeoPulse above is the only signal.")"$'\n'
+  fi
+
+  if (( ai )); then
+    report_to_ai "$report"
+  else
+    printf '%s' "$report"
+  fi
+}
+
+report_to_ai() { # report_to_ai <text>
+  if have neos-ai; then
+    printf '%s' "$1" | neos-ai \
+      "You are NeoOS's diagnostician. The lines below are a system health report. Explain any problem in plain English and give one concrete fix. Keep it short."
+  else
+    warn "neos-ai is not installed — install it to enable AI explanations."
+    printf '%s\n' "$1"
+  fi
+}
+
+# --- subcommand: clean -----------------------------------------------------
+
+cmd_clean() {
+  if have neos-clean; then
+    neos-clean "$@"
+  else
+    err "neos-clean is not installed."
+    return 127
+  fi
+}
+
+# --- subcommand: fix -------------------------------------------------------
+
+cmd_fix() {
+  # Automated repair / recovery from common breakage (#11). Best-effort:
+  # fix broken packages, configure pending, remove orphans.
+  local rc=0
+  if [[ $EUID -ne 0 ]] && have sudo; then
+    log "Running repairs as root..."
+    sudo dpkg --configure -a     || rc=$?
+    sudo apt-get --fix-broken install -y || rc=$?
+    sudo apt-get autoremove -y   || rc=$?
+  else
+    log "Running repairs..."
+    dpkg --configure -a          || rc=$?
+    apt-get --fix-broken install -y || rc=$?
+    apt-get autoremove -y         || rc=$?
+  fi
+  if (( rc == 0 )); then
+    log "Repair complete — no errors."
+  else
+    warn "Repair completed with issues (exit $rc). Review the output above."
+  fi
+  return "$rc"
+}
+
+# --- subcommand: launch (Project Capsules) --------------------------------
+
+_validate_proj() { # validate_proj <name> -> 0/1
+  local name="$1"
+  # conservative identifier: no path traversal, no shell metachars, no spaces
+  [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || return 1
+}
+
+capsule_dir() { # prints path of <project> capsule
+  local name="$1"
+  [[ -n "$name" ]] || { err "usage: neos launch <project>"; return 2; }
+  if ! _validate_proj "$name"; then
+    err "invalid project name '$name' — use letters, digits, '.', '-' (no spaces/traversal)."
+    return 1
+  fi
+  if [[ "$name" == *..* || "$name" == */* ]]; then
+    err "project name may not contain '..' or path separators."
+    return 1
+  fi
+  printf '%s/%s' "$NEOS_CAPSULES" "$name"
+}
+
+cmd_launch() {
+  local name="" list=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --list|-l) list=1; shift ;;
+      -h|--help) sed -n '3,9p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; return 0 ;;
+      *) name="$1"; shift ;;
+    esac
+  done
+
+  if (( list )); then
+    if [[ ! -d "$NEOS_CAPSULES" ]]; then
+      echo "(no project capsules yet — create one with: neos launch <name>)"; return 0
+    fi
+    local d
+    for d in "$NEOS_CAPSULES"/*/; do
+      [[ -d "$d" ]] || continue
+      printf '  %-20s %s\n' "$(basename "$d")" "$(cat "$d/manifest.txt" 2>/dev/null | head -1 || echo "")"
+    done
+    return 0
+  fi
+
+  if [[ -z "$name" ]]; then
+    err "usage: neos launch [--list | <project>]"
+    return 2
+  fi
+
+  local dir
+  dir="$(capsule_dir "$name")" || return $?
+  local env="$dir/env.sh" deps="$dir/deps.pkg"
+
+  if [[ ! -d "$dir" ]]; then
+    mkdir -p "$dir"
+    cat > "$env" <<EOF
+# Capsule environment for project: $name
+# Sourced by:  source $env
+export NEOS_PROJECT="$name"
+EOF
+    : > "$deps"
+    printf 'project %s\n' "$name" > "$dir/manifest.txt"
+    log "Created capsule '$name' at $dir"
+  fi
+
+  # Install declared apt dependencies (best effort; may need root).
+  if [[ -s "$deps" && -f "$deps" ]]; then
+    local pkgs=()
+    read -r -a pkgs < <(tr '\n' ' ' < "$deps")
+    if ! have apt-get; then
+      warn "apt-get not found — cannot install ${#pkgs[@]} declared deps: ${pkgs[*]}"
+    elif (( ${#pkgs[@]} > 0 )); then
+      log "Installing project dependencies: ${pkgs[*]}"
+      if [[ $EUID -eq 0 ]]; then apt-get install -y "${pkgs[@]}"
+      elif have sudo; then sudo apt-get install -y "${pkgs[@]}"
+      else warn "not root — skipping apt install of ${pkgs[*]}"; fi
+    fi
+    # neolib dependencies (NeoLIBs), if managed
+    if have neolibs && [[ -f "$dir/deps.neolib" ]]; then
+      local lib
+      while read -r lib; do
+        [[ -n "$lib" ]] || continue
+        neolibs ensure "$lib" 2>/dev/null || warn "neolibs ensure '$lib' failed."
+      done < "$dir/deps.neolib"
+    fi
+  fi
+
+  echo
+  log "To enter capsule '$name', run:"
+  printf '  source %s\n' "$env"
+}
+
+# --- subcommand: suggest (terminal memory / intent) -----------------------
+
+cmd_suggest() {
+  local histfile="${NEOS_HISTORY:-${HISTFILE:-}}" n=50
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --history|-n) n="$2"; shift 2 ;;
+      *) err "unknown option: $1"; return 2 ;;
+    esac
+  done
+  if [[ ! -r "$histfile" ]]; then
+    warn "no readable shell history (HISTFILE=$histfile)."
+    return 0
+  fi
+  echo "Recent unique commands (last $n):"
+  # frequency-sorted, de-duplicated, newest-first-ish
+  sort "$histfile" 2>/dev/null | uniq -c | sort -rn | head -"$n" | sed 's/^ */  /'
+  echo
+  echo "Tip: type 'neos fix' if something feels broken, or 'neos doctor' for a status check."
+}
+
+# --- dispatcher ------------------------------------------------------------
+
+usage() {
+  cat <<'EOF'
+neos — NeoOS umbrella command
+
+usage:
+  neos help                 list subcommands
+  neos doctor [--fix]       NeoPulse health + repair
+  neos clean [--apply]      free disk space (caches/logs/temp)
+  neos fix                  repair broken dpkg/apt state + remove orphans
+  neos launch [--list|proj] enter or create a project Capsule
+  neos suggest [--history N] terminal memory / intent hints
+
+Options:
+  --fix       run automated repair during 'neos doctor'
+  --apply     actually delete (default: dry run) in 'neos clean'
+  --list      list existing capsules in 'neos launch'
+EOF
+}
+
+main() {
+  local sub="${1:-help}"
+  case "$sub" in
+    help|-h|--help)
+      if [[ $# -gt 1 ]]; then
+        sub="$2"; shift
+        case "$sub" in
+          doctor|clean|fix|launch|suggest)
+            sed -n '3,9p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+            ;;
+          *) err "no such topic: $sub"; return 2 ;;
+        esac
+        return 0
+      fi
+      usage; return 0
+      ;;
+    doctor)   shift; cmd_doctor   "$@" ;;
+    clean)    shift; cmd_clean    "$@" ;;
+    fix)      shift; cmd_fix      "$@" ;;
+    launch)   shift; cmd_launch   "$@" ;;
+    suggest)  shift; cmd_suggest  "$@" ;;
+    *) err "unknown subcommand: $sub"; usage; return 2 ;;
+  esac
+}
+
+main "$@"

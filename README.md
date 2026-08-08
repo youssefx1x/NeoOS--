@@ -1,6 +1,6 @@
 # NeoOS
 
-A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 2.0**, the fully apt-updated, stable release.
+A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.0 Stable**, the fully apt-updated, stable release.
 
 NeoOS is a minimal, terminal-only operating system focused on development,
 networking and tinkering. It ships a **terminal start menu** (code
@@ -10,7 +10,7 @@ for installing and switching between multiple versions of the same shared
 library.
 
 ```
-      NeoOS 2.0 — Debian 13 (trixie) terminal distribution
+      NeoOS 1.1.0 Stable — Debian 13 (trixie) terminal distribution
       ┌─────────────────────────────────────────────────┐
       │  Code        updated code apps + toolchains     │
       │  Internet    browsers, messaging, network utils │
@@ -81,6 +81,73 @@ library.
 - **proot-distro on Termux** — install NeoOS on Android via proot-distro.
 - **ISO build** — build a bootable live ISO from the rootfs.
 
+## Phase 3 preview (current development)
+
+- **NeoOS Uranium** (`neos-uranium`) — one-tap driver installer. `neos-uranium`
+  installs every driver package in `config/packages.drivers`; `neos-uranium
+  suggest`/`update`/`scan` consult an online package index (apt) plus a bundled
+  PCI/USB driver DB (`config/driver-db.tsv`). Covers GPU/Mesa/Vulkan,
+  AMD/NVIDIA firmware, WiFi (Intel/Qualcomm/Broadcom/Atheros), Bluetooth,
+  audio, printing and `qemu-guest-agent`.
+- **Auto-suggest on network up** — `/etc/network/if-up.d/neos-uranium-suggest`
+  fires when Ethernet or USB-tethering comes up and prints a driver tip.
+- **QEMU on Android** — `scripts/run-neoos-qemu.sh` boots the image on a
+  non-rooted Termux host (TCG arm64, virtio GPU, user-net + SSH forward,
+  `/sdcard` and `$HOME` 9p shares, optional VNC/SPICE/headless).
+- **Centralised mirror** — `neos-mirror {status|apply|revert}` switches apt
+  sources to `NEOS_MIRROR_URL` (template in `config/sources.neoos.list`).
+- **One-click OTA** — `neos-update --ota` checks and `--ota-apply` downloads +
+  installs a signed distribution delta from `NEOS_OTA_URL` (GPG-verified when
+  `NEOS_OTA_KEY` is set to a keyring path).
+- **Dark Windows-like desktop** — XFCE with Arc-Dark/Papirus-Dark, a bottom
+  Whisker start menu, libinput tap-to-click + natural-scroll tuning
+   (`overlay/etc/X11/xorg.conf.d/40-libinput-touch.conf`), and lightdm auto-login.
+
+## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Stable — NeoOS 1.1.0)
+
+NeoOS 1.1.0 ships three new, stable pieces that sit cleanly on top of the
+existing `neos-*` tools and `pkg`:
+
+- **NeoCore** — a thin, dependency-free system layer at
+  `overlay/usr/lib/neos/libneocore.sh`. It exposes system status/info,
+  service state, diagnostics, repair, hardware inventory and a small event
+  bus plus a capability manager (`root`/`apt`/`systemd`/`online`). It is the
+  shared backend for every `neo` subcommand and for `neos-help`.
+- **`neo`** — the unified, version-stable entry point. `neo` is a pure
+  alias/facade layer: it loads NeoCore and delegates. `neo system <cmd>`
+  (status/info/services/diagnose/repair/hw/procs), `neo <pkg-op>` delegates
+  to `pkg` (install/remove/upgrade/search/show/files/depends/list/doctor/
+  rollback/history/clean/self-update), and `neo ai|health|update|menu|...`
+  pass through to the existing `neos-*` tools.
+  ```
+  neo system status          # uptime, load, memory, disk, net, caps
+  neo system info            # kernel/arch/host/os/toolchain versions
+  neo install neovim         # -> pkg install neovim  (NeoPkg 2.0)
+  neo doctor                 # -> pkg doctor          (dependency audit)
+  neo rollback 2             # -> pkg rollback 2      (snapshots)
+  neo history                # -> pkg history         (txn log)
+  neo version                # NeoCore 1.1.0 / NeoAPI 1.1.0
+  ```
+- **NeoPkg 2.0 (in `pkg`)** — `pkg` is extended (not rewritten) with
+  dependency resolution, automatic rollback via per-transaction snapshots
+  (`/var/lib/neopkg/snapshots`), package verification, repository
+  priorities, package signing, parallel downloads, delta updates, and an
+  offline cache. New subcommands: `pkg doctor`, `pkg rollback [id]`,
+  `pkg history`, and multi-source `pkg search`/`pkg show`.
+- **NeoLIBs native core (NeoAPI 1.1)** — `neolibs/libneo-core` ships a C ABI
+  core (`libneo.so`, NeoAPI v1.1.0 stable) backing `core`, `system`, `fs`,
+  `net`, `process` and `package` modules, with multi-language bindings
+  (C/C++/Rust/Python/JS/TS via ctypes/node-ffi-napi). It is built and
+  installed into the rootfs by `scripts/apply-overlay.sh` as
+  `/usr/lib/libneo.so{,.1,.1.1.0}` + headers in `/usr/include/neo/`.
+  ```
+  pkg-config --modversion neoapi     # 1.1.0
+  ```
+
+These three are wired into the live ISO at build time (see
+`scripts/apply-overlay.sh`) and listed by the unified command reference
+(`neos-help`).
+
 ## Quick start
 
 ```sh
@@ -98,15 +165,62 @@ library.
 
 # Clean build artifacts
 ./build.sh clean
+
+# Boot the live ISO in QEMU on the host (x86-64)
+qemu-system-x86_64 -cdrom build/neoos.iso -m 2G
 ```
+
+## NeoOS in WSL2
+
+NeoOS also runs as a **WSL2 distribution** — no emulator, full WSLg GUI support.
+WSL2 is x86-64, and `build.sh rootfs` defaults to `--arch amd64`, so the build
+is a native match.
+
+**Prerequisites** (Windows 11 22H2+, with WSL2 + WSLg GUI enabled):
+
+```powershell
+wsl --install     # installs a base distro; GUI comes via WSLg
+```
+
+**Steps** (run from a WSL2 distro):
+
+```sh
+# 1. Build the NeoOS rootfs (x86-64 by default on WSL2)
+./build.sh rootfs                       # produces build/rootfs
+( cd build && tar -cf ../neoos-rootfs.tar -C rootfs . )   # plain .tar for WSL import
+```
+
+```powershell
+# 2. Import into WSL (run in an elevated PowerShell on Windows)
+wsl --import NeoOS "$env:USERPROFILE\NeoOS" .\neoos-rootfs.tar --version 2
+```
+
+Then launch NeoOS directly (native speed) or its XFCE desktop (via WSLg):
+
+```sh
+wsl -d NeoOS                          # NeoOS shell
+wsl -u root -d NeoOS neos-xfce        # start the dark XFCE desktop (WSLg)
+```
+
+Notes:
+- To force a specific arch, build with `bash scripts/build-rootfs.sh --arch amd64 --out build/neoos-rootfs`.
+- WSL2 networking is NAT — USB tethering doesn't apply here, so the
+  `neos-uranium` auto-suggest-on-network hook (if-up.d) won't fire; run
+  `neos-uranium` manually to install drivers when you connect an Ethernet cable
+  in WSL Settings.
+- For the arm64 image instead: install `qemu-system-aarch64` in WSL2 and run
+  `scripts/run-neoos-qemu.sh build/neoos.img` (TCG emulation — slower).
 
 ## Project layout
 
 ```
-config/              package lists and sources.list (trixie)
-scripts/             build drivers: rootfs, ISO, proot, overlay, chroot setup
+config/              package lists and sources.list (trixie): packages.base,
+                    packages.xfce, packages.drivers, packages.calamares, ...
+scripts/             build drivers: rootfs, ISO, proot, overlay, chroot
+                    setup, and run-neoos-qemu.sh (Termux QEMU launcher)
 overlay/             files injected into the rootfs
   usr/bin/neos-menu      terminal start menu
+  usr/bin/neos-uranium   one-tap driver installer (NeoOS Uranium)
   usr/bin/neos-drivers   driver installer
   usr/bin/neos-wayland   Wayland session launcher
   usr/bin/neos-wine      run Windows console/terminal .exe apps

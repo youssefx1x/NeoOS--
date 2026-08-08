@@ -54,7 +54,7 @@ size_mib() { # size in KiB -> MiB rounded
 [[ ${WANT[logs]} == 1 ]] && {
   sz=$(du -sk /var/log 2>/dev/null | cut -f1 || echo 0)
   (( sz > 0 )) && { report "system logs" "$sz"; if (( APPLY )); then
-    find /var/log -type f -name '*.gz' -o -type f -name '*.old' 2>/dev/null | xargs -r rm -f
+    find /var/log -type f \( -name '*.gz' -o -name '*.old' \) -exec rm -f {} +
     true
   fi; }
 }

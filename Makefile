@@ -24,6 +24,7 @@ all:
 
 test:
 	bash tests/test-neolibs.sh
+	bash tests/test-neos.sh
 
 clean:
 	./build.sh clean

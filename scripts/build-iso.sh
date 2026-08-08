@@ -13,13 +13,16 @@ NEOS_ARCH="${NEOS_ARCH:-amd64}"
 log() { printf '\033[1;36m[neos-iso]\033[0m %s\n' "$*"; }
 
 require() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required tool: $1" >&2
+  local tool="$1" pkg="${2:-$1}"
+  command -v "$tool" >/dev/null 2>&1 || {
+    echo "Missing required tool: $tool" >&2
+    echo "Install it with:" >&2
+    echo "  sudo apt install $pkg" >&2
     exit 1
   }
 }
-require grub-mkrescue
-require xorriso
+require grub-mkrescue grub2-common
+require xorriso xorriso
 
 # Make sure the rootfs has a kernel + live-boot + grub layer. If not, run
 # setup-iso.sh inside the rootfs via chroot (build-helper). NEOS_INCLUDE_INSTALLER
@@ -52,7 +55,7 @@ cp "$NEOS_ROOTFS"/boot/initrd.img-* "$ISODIR/boot/initrd.img"
 cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
 set timeout=5
 set default=0
-menuentry "NeoOS 2.0 (Debian 13 trixie) — Live Terminal" {
+menuentry "NeoOS 1.1.0 Stable (Debian 13 trixie) — Live Terminal" {
   linux /boot/vmlinuz boot=live quiet toram components
   initrd /boot/initrd.img
 }

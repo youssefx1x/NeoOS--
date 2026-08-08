@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# neos-audio — mixer helper (status/up/down/mute)
+set -euo pipefail
+if ! command -v amixer >/dev/null 2>&1; then
+  echo "neos-audio: amixer not found (install alsa-utils)" >&2
+  exit 1
+fi
+case "${1:-status}" in
+  status)
+    amixer get Master | awk -F'[][]' '/dB|%/{printf "volume: %s\n",$NF; exit}'
+    ;;
+  up)
+    amixer set Master 5%+ >/dev/null
+    ;;
+  down)
+    amixer set Master 5%- >/dev/null
+    ;;
+  mute)
+    amixer set Master toggle >/dev/null
+    ;;
+  *)
+    echo "usage: neos-audio {status|up|down|mute}" >&2
+    exit 2
+    ;;
+esac

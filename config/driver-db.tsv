@@ -1,0 +1,25 @@
+# id<TAB>package<TAB>human-readable note
+# PCI vendor:device IDs (from `lspci -nn` -> [VVVV:DDDD]) mapped to drivers/firmware.
+8086:100e	e1000	intel gigabit ethernet (legacy)
+8086:10d3	e1000e	intel gigabit ethernet
+8086:1502	e1000e	intel ethernet
+8086:1503	e1000e	intel ethernet
+8086:10fb	ixgbe	intel 10Gb ethernet
+8086:10c9	mpt2sas	intel SAS HBA
+10ec:8139	8139cp	realtek ethernet
+10ec:8168	r8169	realtek gigabit ethernet
+10ec:8129	r8169	realtek gigabit ethernet
+10ec:8106	r8169	realtek fast ethernet
+1106:3106	via-rhine	VIA ethernet
+14e4:164c	bnx2	QLogic broadcom net
+10de:10xx	nvidia-driver	NVIDIA proprietary GPU
+10de:13xx	nvidia-driver	NVIDIA proprietary GPU
+1002:67xx	amdgpu	Radeon/AMD GPU (mesa)
+1002:98xx	amdgpu	AMD APU GPU (mesa)
+8086:0116	i915	intel integrated graphics
+8086:0126	i915	intel integrated graphics
+8086:0156	i915	intel integrated graphics
+8086:0412	i915	intel integrated graphics
+8086:0a16	i915	intel integrated graphics
+106b:0071	tg3	Broadcom tg3 ethernet
+106b:1645	bnx2	Apple/Broadcom ethernet

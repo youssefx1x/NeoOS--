@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# neos-archive — tar wrapper (create/list/extract)
+set -euo pipefail
+if [[ $# -lt 1 ]]; then
+  echo "usage: neos-archive {create FILE DIR|list FILE|extract FILE}" >&2
+  exit 2
+fi
+case "$1" in
+  create)
+    shift
+    tar -czf "${1:?missing archive name}" "${2:-.}"
+    ;;
+  list)
+    tar -tzf "${2:-}"
+    ;;
+  extract)
+    tar -xzf "${2:-}"
+    ;;
+  *)
+    echo "usage: neos-archive {create FILE DIR|list FILE|extract FILE}" >&2
+    exit 2
+    ;;
+esac

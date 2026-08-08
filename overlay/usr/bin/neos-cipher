@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# neos-cipher — AES-256 file encrypt/decrypt (openssl)
+set -euo pipefail
+if ! command -v openssl >/dev/null 2>&1; then
+  echo "neos-cipher: openssl not available" >&2
+  exit 1
+fi
+if [[ $# -lt 4 ]]; then
+  echo "usage: neos-cipher {enc|dec} INFILE OUTFILE PASSWORD" >&2
+  exit 2
+fi
+case "$1" in
+  enc)
+    openssl enc -aes-256-cbc -a -pbkdf2 -in "$2" -out "$3" -pass pass:"$4"
+    ;;
+  dec)
+    openssl enc -d -aes-256-cbc -a -pbkdf2 -in "$2" -out "$3" -pass pass:"$4"
+    ;;
+  *)
+    echo "usage: neos-cipher {enc|dec} INFILE OUTFILE PASSWORD" >&2
+    exit 2
+    ;;
+esac

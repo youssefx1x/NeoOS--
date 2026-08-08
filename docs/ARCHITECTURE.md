@@ -7,9 +7,9 @@ NeoOS is a terminal-first Linux distribution assembled from **Debian 13
 no custom kernel or fork of the archive; NeoOS layers a curated terminal
 experience on top of the standard Debian archive.
 
-**NeoOS 2.0** is the fully apt-updated, stable release: the rootfs is
+**NeoOS 1.1.0 Stable** is the fully apt-updated, stable release: the rootfs is
 brought to current trixie/trixie-updates/trixie-security, broken dpkg state
-is repaired, and the version is bumped to 2.0 throughout
+is repaired, and the version is bumped to 1.1.0 throughout
 (`os-release`, Calamares branding, motd, ISO boot menu).
 
 ```
@@ -209,6 +209,36 @@ Multi-version shared-library manager. Storage layout:
 - Rootless fallback to `~/.local/share/neolibs` when `/opt` is unwritable.
 - Sources: local `.so`/dir (`--from`), URL (`--from-url`), apt package
   (`--from-deb`).
+
+### NeoCore, NeoPkg 2.0 & the `neo` CLI — Stable (NeoOS 1.1.0)
+
+- **NeoCore** (`overlay/usr/lib/neos/libneocore.sh`) — the NeoOS system
+  layer: system status/info, service state, diagnostics, repair, hardware
+  inventory, a small event bus and a capability manager
+  (`root`/`apt`/`systemd`/`online`). Shared backend for `neo` and
+  `neos-help`.
+- **`neo`** (`overlay/usr/bin/neo`) — the unified version-stable entry
+  point. It is a pure alias/facade: it sources NeoCore, and
+  - `neo system <cmd>` → NeoCore (`status`/`info`/`services`/`diagnose`/
+    `repair`/`hw`/`procs`),
+  - `neo <pkg-op>` → `pkg` (the NeoPkg 2.0 surface: the full install/remove/
+    upgrade/search/show/files/depends/list/doctor/rollback/history/clean/
+    self-update matrix),
+  - `neo ai|health|update|menu|...` → pass-through to the matching
+    `neos-*` tool
+  - `neo version` → `NeoCore 1.1.0 / NeoAPI 1.1.0`.
+- **NeoPkg 2.0** — `pkg` is extended, not rewritten. Adds dependency
+  resolution, per-transaction snapshots + automatic rollback
+  (`/var/lib/neopkg/snapshots`), package verification, repository
+  priorities, package signing, parallel downloads, delta updates and an
+  offline cache. New: `pkg doctor`, `pkg rollback [id]`, `pkg history`,
+  multi-source `pkg search`/`pkg show`.
+- **NeoAPI 1.1** — the C ABI core in `neolibs/libneo-core`. Builds to
+  `/usr/lib/libneo.so{,.1,.1.1.0}` + `/usr/include/neo/*.h`; installed by
+  `scripts/apply-overlay.sh`. Bindings: C/C++/Rust/Python/JS/TS. Modules:
+  `core`, `system`, `fs`, `net`, `process`, `package` (the remaining
+  modules — `gui`, `ai`, `security`, `hardware` — are reserved stubs
+  returning `NEO_ERR_UNIMPLEMENTED`).
 
 ## Termux / proot-distro
 

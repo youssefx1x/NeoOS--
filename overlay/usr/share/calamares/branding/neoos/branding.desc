@@ -9,10 +9,10 @@ windowPlacement: center
 strings:
     productName:         "NeoOS"
     shortProductName:    "NeoOS"
-    version:             2.0
-    shortVersion:        2.0
-    versionedName:       "NeoOS 2.0"
-    shortVersionedName:  "NeoOS 2.0"
+    version:             1.1.0
+    shortVersion:        1.1.0
+    versionedName:       "NeoOS 1.1.0 Stable"
+    shortVersionedName:  "NeoOS 1.1.0 Stable"
     bootloaderEntryName: "NeoOS"
     productUrl:          "https://neoos.local"
     supportUrl:          "https://neoos.local/support"

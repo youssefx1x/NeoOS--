@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# neo — NeoOS unified entry point (alias/facade layer).
+#
+# `neo` is intentionally thin: it does not reimplement existing tools. It wires
+# together the NeoCore system API (the new core layer) and delegates package
+# management to `pkg` and every other capability to the existing `neos-*` tools.
+#
+#   neo system status | info | services | diagnose | repair | hw | procs
+#   neo system config <key> | events | version
+#   neo install|remove|update|upgrade|search|show|info|files|depends|list|doctor|rollback|history|clean|self-update <args>
+#   neo pkg ...                                  (pass-through to pkg)
+#   neo ai|health|update|menu|fetch|ports|...    (pass-through to neos-*)
+#   neo help                                     (neos-help overview)
+#   neo version
+
+set -euo pipefail
+
+# --- locate NeoCore library ----------------------------------------------------
+NEOCORE_LIB=""
+for __c in \
+  "/usr/lib/neos/libneocore.sh" \
+  "$(dirname "${BASH_SOURCE[0]}")/../lib/neos/libneocore.sh" \
+  "../lib/neos/libneocore.sh"; do
+  if [[ -f "$__c" ]]; then NEOCORE_LIB="$__c"; break; fi
+done
+if [[ -z "$NEOCORE_LIB" ]]; then
+  echo "neo: NeoCore library not found (expected /usr/lib/neos/libneocore.sh)" >&2
+  exit 1
+fi
+# shellcheck source=/usr/lib/neos/libneocore.sh
+. "$NEOCORE_LIB"
+
+# --- resolve a neos-* backend by stem -----------------------------------------
+_neos_cmd() {
+  local stem="$1"
+  local p
+  for p in "/usr/bin/neos-$stem" "$(dirname "${BASH_SOURCE[0]}")/neos-$stem" "../neos-$stem"; do
+    [[ -x "$p" ]] && { printf '%s' "$p"; return 0; }
+  done
+  command -v "neos-$stem" 2>/dev/null && return 0
+  return 1
+}
+
+# --- subcommand router --------------------------------------------------------
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "$cmd" in
+    system)
+      neocore_main "$@"
+      ;;
+    # --- NeoPkg 2.0 alias surface (delegates to pkg) -----------------------
+    install|add|remove|uninstall|update|upgrade|full-upgrade|search|find|\
+    show|info|files|depends|deps|list|list-installed|list-all|check|audit|\
+    autoremove|clean|self-update|selfupdate|doctor|rollback|history)
+      if command -v pkg >/dev/null 2>&1; then
+        exec pkg "$cmd" "$@"
+      else
+        err "pkg (NeoPkg) is not installed"
+        exit 127
+      fi
+      ;;
+    pkg)
+      if command -v pkg >/dev/null 2>&1; then exec pkg "$@"; else err "pkg not installed"; exit 127; fi
+      ;;
+    version|--version|-v)
+      neocore_main version
+      ;;
+    help|-h|--help|"")
+      neos_help="${NEOS_HELP:-}"
+      if [[ -z "$neos_help" ]]; then
+        if command -v neos-help >/dev/null 2>&1; then neos_help="$(command -v neos-help)"; fi
+      fi
+      if [[ -n "$neos_help" ]]; then exec "$neos_help" "$@"; else neocore_main help; fi
+      ;;
+    *)
+      # Generic neos-<cmd> delegation (ai, health, update, menu, mount, ...)
+      if _neos_cmd "$cmd" >/dev/null 2>&1; then
+        exec "$(_neos_cmd "$cmd")" "$@"
+      else
+        err "unknown neo subcommand: $cmd"
+        printf 'Try: neo help\n' >&2
+        exit 2
+      fi
+      ;;
+  esac
+}
+
+main "$@"

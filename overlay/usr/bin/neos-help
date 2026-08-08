@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-BANNER='NeoOS 2.0 — terminal-first Debian 13 distribution'
+BANNER='NeoOS 1.1.0 Stable — terminal-first Debian 13 distribution'
 
 one() {
   local cmd="$1" line="$2"
@@ -24,15 +24,19 @@ overview() {
 $BANNER
 EOF
   heading "Start menu & shell"
+  one neos-start "Windows-like start menu: apps, files, settings, power"
   one neos-menu "Terminal start menu (sections for code, internet, drivers...)"
   one neos-fetch "System info banner (neofetch-style ASCII logo)"
   one neos-help  "This command reference"
 
   heading "Packages & system"
-  one pkg        "Termux-style package manager over apt (install/search/upgrade)"
+  one neo        "Unified NeoOS CLI: NeoCore (system status/info/diagnose) + NeoPkg 2.0 + neos-*"
+  one pkg        "Termux-style package manager over apt (install/search/upgrade; NeoPkg 2.0)"
   one neos-update "Plan-first system updater"
   one neos-where  "Find which package provides a command/file"
   one neos-drivers "Hardware driver installer (GPU, wifi, bluetooth, firmware)"
+  one neos-uranium "One-tap driver install + online DB (suggest/scan/update)"
+  one neos-mirror   "Switch apt sources to the NeoOS centralized mirror"
   one neos-ports  "List listening services + owning packages"
   one neos-backup "Back up configs + installed-package list"
   one neos-serve  "Quick HTTP file sharing server (with upload option)"
@@ -59,6 +63,14 @@ EOF
   heading "Dev"
   one neos-new   "Scaffold new projects (bash, python, c, web, shlib)"
   one neos-lang  "Install / list language toolchains"
+  one neos-launch "Enter or create a Project Capsule workspace (neos launch)"
+
+  heading "Recovery & maintenance"
+  one neos-doctor "NeoPulse human-readable health check (neos doctor)"
+  one neos-doctor-ai "Doctor with AI diagnosis: neos doctor --ai (uses neos-ai)"
+  one neos-clean "Free disk by cleaning caches/logs/temp (neos clean)"
+  one neos-fix   "Automatic repair: dpkg/apt --fix-broken + autoremove (neos fix)"
+  one neos-ai    "On-device AI assistant (Qwen 2.5 0.5B local or HTTP backend)"
 
   heading "Users"
   one neos-users  "User manager: add (normal/Admin), delete, passwd, autologin"
@@ -69,13 +81,27 @@ EOF
   one neos-distro  "Install/run other distros as proot containers"
 
   heading "Graphics & Windows apps"
+  one neos-gui     "Install + select a GUI session (Openbox / Sway / Xfce)"
   one neos-wayland "Start a Weston + XWayland Wayland session"
+  one neos-xfce    "Start the NeoOS XFCE desktop session (dark, bottom panel)"
   one neos-wine    "Run Windows console (.exe) apps in a Win10 prefix"
   one neos-winetricks "Wine + Winetricks setup helper"
   one neos-winevm  "Isolated 'Wine VMs' for Windows applications"
 
+  heading "Quick tools"
+  one neos-brightness "Screen backlight control (status/up/down/set)"
+  one neos-audio      "Mixer helper (status/up/down/mute)"
+  one neos-mounts     "List mounted filesystems"
+  one neos-inode      "Filesystem inode / disk usage"
+  one neos-sensors    "Hardware temperatures + fan speeds"
+  one neos-grep       "rg-or-grep search wrapper"
+  one neos-diff       "Colored diff of two files"
+  one neos-archive    "Tar wrapper (create/list/extract)"
+  one neos-cipher     "AES-256 file encrypt/decrypt (openssl)"
+  one neos-theme      "Toggle Arc light/dark + Papirus theme"
+
   heading "NeoLIBs"
-  one neolibs     "Multi-version shared-library manager (use 'neolibs --help')"
+  one neolibs  "Multi-version shared-library manager + native NeoAPI (libneo.so C ABI)"
 
   printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\033[0m\n'
 }
@@ -99,14 +125,16 @@ summary_table() {
   printf '%s\n' '------------------------------------------------------------'
   for cmd in \
     neos-menu neos-fetch neos-help \
-    pkg neos-update neos-where neos-drivers neos-ports neos-backup neos-serve \
+    pkg neos-update neos-where neos-drivers neos-mirror neos-ports neos-backup neos-serve \
     neos-monitor neos-disk neos-clean neos-battery \
     neos-net neos-ip neos-speedtest \
     neos-todo neos-notes neos-timer neos-calc neos-fortune \
-    neos-new neos-lang neos-health \
-    neos-users neos-guest \
+     neos-new neos-lang neos-health \
+     neo neos-users neos-guest \
     neos-installer neos-distro \
     neos-wayland neos-wine neos-winetricks neos-winevm \
+    neos-uranium neos-xfce neos-brightness neos-audio neos-mounts \
+    neos-inode neos-sensors neos-grep neos-diff neos-archive neos-cipher neos-theme \
     neolibs; do
     if [[ -f "$(dirname "$0")/$cmd" ]] || command -v "$cmd" >/dev/null 2>&1; then
       summary=$(grep -m1 '^# [a-z].* —' "$(dirname "$0")/$cmd" 2>/dev/null | sed 's/^# //; s/ — /: /')
@@ -121,7 +149,9 @@ list_only() {
     'neos-clean neos-battery neos-net neos-ip neos-speedtest neos-todo' \
     'neos-notes neos-timer neos-calc neos-fortune neos-new neos-lang' \
     'neos-health neos-users neos-guest neos-installer neos-distro' \
-    'neos-wayland neos-wine neos-winetricks neos-winevm neolibs'
+    'neos-wayland neos-wine neos-winetricks neos-winevm neos-uranium neos-xfce neos-mirror' \
+    'neos-brightness neos-audio neos-mounts neos-inode neos-sensors' \
+     'neos-grep neos-diff neos-archive neos-cipher neos-theme neo neolibs'
 }
 
 case "${1:-}" in

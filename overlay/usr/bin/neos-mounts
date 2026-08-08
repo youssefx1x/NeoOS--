@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# neos-mounts — list mounted filesystems
+set -euo pipefail
+printf '%-20s %-18s %s\n' "device" "mount point" "fstype"
+while read -r dev mp fs _ _; do
+  printf '%-20s %-18s %s\n' "$dev" "$mp" "$fs"
+done < /proc/mounts

@@ -40,12 +40,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 require() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required tool: $1" >&2
+  local tool="$1" pkg="${2:-$1}"
+  command -v "$tool" >/dev/null 2>&1 || {
+    echo "Missing required tool: $tool" >&2
+    echo "Install it with:" >&2
+    echo "  sudo apt install $pkg" >&2
     exit 1
   }
 }
-require mmdebstrap
+# Prefer mmdebstrap (single-stage, fast). On systems without it — e.g.
+# Android/Termux, whose package repos do not ship mmdebstrap — fall back to
+# debootstrap: a host-side `--foreign` first stage followed by a second
+# stage run *inside* the rootfs (chroot if available, otherwise proot,
+# which requires no root). Wherever mmdebstrap exists the build path is
+# unchanged, so the main ISO/rootfs pipelines are unaffected.
+HAVE_MMEDEBSTRAP=0
+if command -v mmdebstrap >/dev/null 2>&1; then
+  HAVE_MMEDEBSTRAP=1
+else
+  log "mmdebstrap not found; falling back to debootstrap"
+  require debootstrap debootstrap
+  # debootstrap's --foreign stage runs on the host (no target binaries are
+  # executed); the second stage runs inside the rootfs and needs chroot or
+  # proot to provide the target root view.
+  command -v chroot >/dev/null 2>&1 || require proot proot-distro
+fi
 
 if [[ ! -f "$NEOS_KEYRING" ]]; then
   NEOS_KEYRING=""
@@ -61,13 +80,45 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     keyring_args=(--keyring "$NEOS_KEYRING")
   fi
 
-  mmdebstrap \
-    --variant=minbase \
-    --arch="$NEOS_ARCH" \
-    --components="$NEOS_COMPONENTS" \
-    "${keyring_args[@]}" \
-    --include="$(tr '\n' ' ' < "$REPO_ROOT/config/packages.base" | tr -s ' ')" \
-    "$NEOS_SUITE" "$NEOS_ROOTFS"
+  if (( HAVE_MMEDEBSTRAP )); then
+    keyring_args=()
+    if [[ -n "$NEOS_KEYRING" ]]; then
+      keyring_args=(--keyring "$NEOS_KEYRING")
+    fi
+    mmdebstrap \
+      --variant=minbase \
+      --arch="$NEOS_ARCH" \
+      --components="$NEOS_COMPONENTS" \
+      "${keyring_args[@]}" \
+       --include="$(cat "$REPO_ROOT/config/packages.base" "$REPO_ROOT/config/packages.xfce" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//')" \
+      "$NEOS_SUITE" "$NEOS_ROOTFS"
+  else
+    # debootstrap fallback (Termux: mmdebstrap unavailable). The --foreign
+    # first stage runs on the host and never executes target binaries.
+    deboot_args=(--foreign --arch="$NEOS_ARCH" --variant=minbase)
+    if [[ -n "$NEOS_KEYRING" ]]; then
+      deboot_args+=(--keyring="$NEOS_KEYRING")
+    else
+      log "WARNING: no Debian keyring found; proceeding without GPG signature verification"
+      deboot_args+=(--no-check-gpg)
+    fi
+    # debootstrap --include expects a comma-separated list; all packages.base
+    # entries live in `main`, which debootstrap fetches by default, so
+    # --components is intentionally omitted (older debootstrap lacks it).
+    deboot_inc="$(cat "$REPO_ROOT/config/packages.base" "$REPO_ROOT/config/packages.xfce" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ',' | sed 's/^[[:space:]]*,//; s/,$//; s/,,*/,/g')"
+    if [[ -n "$deboot_inc" ]]; then
+      deboot_args+=(--include="$deboot_inc")
+    fi
+    log "Running debootstrap first stage"
+    debootstrap "${deboot_args[@]}" "$NEOS_SUITE" "$NEOS_ROOTFS" "$NEOS_MIRROR"
+
+    log "Running debootstrap second stage inside rootfs"
+    if command -v chroot >/dev/null 2>&1; then
+      chroot "$NEOS_ROOTFS" /debootstrap/debootstrap --second-stage
+    else
+      proot -r "$NEOS_ROOTFS" /debootstrap/debootstrap --second-stage
+    fi
+  fi
 fi
 
 log "Applying NeoOS configuration overlay"

@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# neos-gui — download, install and SELECT a graphical session for NeoOS.
+#
+#   neos-gui                  interactive menu: Openbox or Sway (2 options)
+#   neos-gui openbox          install + select Openbox (lightweight, X11)
+#   neos-gui sway             install + select Sway    (tiling, Wayland)
+#   neos-gui xfce             install + select Xfce4   (full desktop)
+#   neos-gui select <gui>     mark a GUI as the chosen session (no install)
+#   neos-gui list             show installed + currently selected GUI
+#
+# Selection is recorded in ~/.config/neos/gui plus an ~/.xsession so the next
+# `startx` / `neos-start` session uses it. Installs need root (sudo if not root).
+# No network/secret handling: this only invokes apt and writes local files.
+
+set -uo pipefail
+
+GUI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/neos"
+GUI_FILE="$GUI_DIR/gui"   # records the currently selected GUI
+XSESSION="$HOME/.xsession"
+
+log()  { printf '\033[1;36m[neos-gui]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[neos-gui]\033[0m %s\n' "$*" >&2; }
+err()  { printf '\033[1;31m[neos-gui]\033[0m %s\n' "$*" >&2; }
+die()  { err "$*"; exit 1; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# --- per-GUI package sets + session exec ----------------------------------
+
+gui_packages() { # gui_packages <name>  -> echo space-sep pkgs
+  case "$1" in
+    openbox) echo openbox obconf lxappearance ;;
+    sway)    echo sway swayidle swaylock ;;
+    xfce)    echo xfce4 xfce4-goodies ;;
+    *) return 1 ;;
+  esac
+}
+
+gui_exec() { # gui_exec <name> -> xsession exec line
+  case "$1" in
+    openbox) echo "openbox" ;;
+    sway)    echo "sway" ;;
+    xfce)    echo "startxfce4" ;;
+    *) return 1 ;;
+  esac
+}
+
+gui_present() { # gui_present <name> -> 0 if the WM/desktop is installed
+  case "$1" in
+    openbox) have openbox ;;
+    sway)    have sway ;;
+    xfce)    have xfce4-session || have startxfce4 || dpkg -s xfce4 >/dev/null 2>&1 ;;
+    *) return 1 ;;
+  esac
+}
+
+# --- actions --------------------------------------------------------------
+
+install_packages() { # install_packages pkg...
+  local need=() p
+  for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || need+=("$p"); done
+  if [[ ${#need[@]} -eq 0 ]]; then
+    log "all packages already installed."
+    return 0
+  fi
+  log "installing: ${need[*]}"
+  if [[ $EUID -eq 0 ]]; then apt-get update -qq && apt-get install -y "${need[@]}"
+  elif have sudo; then sudo apt-get update -qq && sudo apt-get install -y "${need[@]}"
+  else err "root/sudo required to install packages."; return 1; fi
+}
+
+select_gui() { # select_gui <name>
+  local name="$1" exec_line
+  exec_line="$(gui_exec "$name")" || die "unknown GUI: $name"
+  mkdir -p "$GUI_DIR"
+  printf '%s\n' "$name" > "$GUI_FILE"
+  printf '#!/bin/sh\n# NeoOS selected session (set by neos-gui)\nexec %s\n' "$exec_line" > "$XSESSION"
+  chmod +x "$XSESSION"
+  log "session selected: $name (exec $exec_line in $XSESSION)"
+}
+
+do_install() { # do_install <name>
+  local name="$1" pkgs
+  pkgs="$(gui_packages "$name")" || die "unknown GUI: $name (use openbox|sway|xfce)"
+  if gui_present "$name"; then
+    log "$name is already installed."
+  else
+    install_packages $pkgs || return $?
+  fi
+  select_gui "$name"
+  echo
+  log "Done. To start $name now:  startx   (or run 'neos-start' for the menu)"
+  echo "    Next boot / session will use $name automatically via ~/.xsession."
+}
+
+list_guis() {
+  local name cur
+  cur="$(cat "$GUI_FILE" 2>/dev/null || echo "(none)")"
+  printf 'Currently selected: %s\n' "$cur"
+  printf '%-10s %-10s %s\n' "GUI" "INSTALLED" "SESSION-EXEC"
+  for name in openbox sway xfce; do
+    if gui_present "$name"; then printf '%-10s %-10s %s\n' "$name" "yes" "$(gui_exec "$name")";
+    else printf '%-10s %-10s %s\n' "$name" "no" "$(gui_exec "$name")"; fi
+  done
+}
+
+# --- interactive menu (whiptail if a TTY, else numbered read) --------------
+
+have_tty() { [[ -t 0 && -t 2 ]]; }
+
+choose() { # choose <title> <t1> <d1> <t2> <d2> ...  -> echoes tag (or "")
+  local title="$1"; shift
+  if have_tty && have whiptail; then
+    whiptail --title "$title" --menu "$title" 15 65 8 "$@" 3>/dev/tty || return 1
+    return 0
+  fi
+  local i=1
+  echo "$title:" >&2
+  while [[ $# -ge 2 ]]; do
+    printf '  %d) %s\n' "$i" "$2" >&2
+    eval "__c$i=\"$1\""  # map index -> tag
+    i=$((i+1)); shift 2
+  done
+  read -r -p "choose [1-$((i-1))]: " ans >&2
+  [[ "$ans" =~ ^[0-9]+$ ]] || return 1
+  (( ans >= 1 && ans < i )) || return 1
+  eval "printf '%s' \"\$__c$ans\""
+}
+
+show_menu() {
+  local choice
+  choice="$(choose "NeoOS GUI" openbox "Openbox — lightweight, X11 (2 options: Openbox/Sway)" sway "Sway — tiling Wayland compositor" 2>&1 >/dev/tty || choose "NeoOS GUI" openbox "Openbox" sway "Sway")"
+  [[ -n "$choice" ]] || { warn "cancelled."; return 1; }
+  do_install "$choice"
+}
+
+usage() {
+  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+main() {
+  local sub="${1:-}"
+  case "$sub" in
+    ""|-h|--help|menu) usage; [[ "$sub" == "" ]] && show_menu && return 0 ;;
+    openbox|sway|xfce) do_install "$sub" ;;
+    select) [[ $# -ge 2 ]] || die "usage: neos-gui select <openbox|sway|xfce>"; select_gui "$2" ;;
+    list|status) list_guis ;;
+    *) die "unknown command: $sub (try: neos-gui --help)" ;;
+  esac
+}
+
+main "$@"

@@ -25,14 +25,17 @@ if [[ $# -eq 0 ]]; then
 fi
 
 require() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "chroot-run: missing required tool: $1" >&2
+  local tool="$1" pkg="${2:-$1}"
+  command -v "$tool" >/dev/null 2>&1 || {
+    echo "Missing required tool: $tool" >&2
+    echo "Install it with:" >&2
+    echo "  sudo apt install $pkg" >&2
     exit 1
   }
 }
-require chroot
-require mount
-require umount
+require chroot util-linux
+require mount util-linux
+require umount util-linux
 
 # Bind-mount the filesystems the chroot needs.
 mount --bind /proc "$ROOTFS/proc"   2>/dev/null || \

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# neos-brightness — screen backlight control (status/up/down/set)
+set -euo pipefail
+bd="$(find /sys/class/backlight -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -n1)"
+if [[ -z "${bd:-}" ]]; then
+  echo "neos-brightness: no backlight device found" >&2
+  exit 1
+fi
+read -r cur < "$bd/actual_brightness" 2>/dev/null || read -r cur < "$bd/brightness" 2>/dev/null || cur=0
+read -r max < "$bd/max_brightness"
+pct=$(( cur * 100 / max ))
+case "${1:-status}" in
+  status)
+    echo "${pct}%"
+    ;;
+  up)
+    pct=$(( pct + 10 )); pct=$(( pct > 100 ? 100 : pct ))
+    ;;
+  down)
+    pct=$(( pct - 10 )); pct=$(( pct < 0 ? 0 : pct ))
+    ;;
+  set)
+    pct="${2:-$pct}"
+    ;;
+  *)
+    echo "usage: neos-brightness {status|up|down|set N}" >&2
+    exit 2
+    ;;
+esac
+val=$(( max * pct / 100 ))
+if command -v brightnessctl >/dev/null 2>&1; then
+  brightnessctl s "$val" >/dev/null || true
+else
+  echo "$val" > "$bd/brightness" 2>/dev/null || true
+fi
+echo "${pct}%"

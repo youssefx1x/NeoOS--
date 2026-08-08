@@ -36,11 +36,11 @@ pkg_of() {
 }
 
 if [[ $have_ss -eq 1 ]]; then
-  filt=""
-  [[ "$proto" == "tcp" ]] && filt="-t"
-  [[ "$proto" == "udp" ]] && filt="-u"
+  filt=()
+  [[ "$proto" == "tcp" ]] && filt+=("-t")
+  [[ "$proto" == "udp" ]] && filt+=("-u")
   if [[ $json -eq 1 ]]; then
-    ss -l -H $filt 2>/dev/null | awk '
+    ss -l -H "${filt[@]}" 2>/dev/null | awk '
       NR>0 {
         local="";
         for (i=1; i<=NF; i++) if ($i ~ /:[0-9]+$/ && $i !~ /^\*/) { local=$i; break }
@@ -51,7 +51,7 @@ if [[ $have_ss -eq 1 ]]; then
     exit 0
   fi
   printf '%-8s %-8s %-12s %s\n' "PROTO" "STATE" "LOCAL" "PROCESS"
-  ss -l -H -p $filt 2>/dev/null | while read -r line; do
+  ss -l -H -p "${filt[@]}" 2>/dev/null | while read -r line; do
     [[ "$line" =~ ^nl[[:space:]] ]] && continue
     local_parts=$(echo "$line" | awk '{print $4}')
     proto_f=$(echo "$line" | awk '{print $1}')
@@ -69,7 +69,7 @@ fi
 if [[ $with_pkg -eq 1 && $have_ss -eq 1 ]]; then
   echo
   log "owning packages per listener pid:"
-  ss -l -H $filt 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u | while read -r pid; do
+  ss -l -H "${filt[@]}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u | while read -r pid; do
     pkg=$(pkg_of "$pid")
     [[ -n "$pkg" ]] && printf '  pid %-8s %s\n' "$pid" "$pkg"
   done

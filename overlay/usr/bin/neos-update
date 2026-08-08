@@ -5,19 +5,26 @@
 #   neos-update --apply    check + apply upgrades (and autoremove)
 #   neos-update --quiet    non-interactive, only log on errors
 #   neos-update --clean    clean apt cache after upgrade
+#   neos-update --ota      check for a NeoOS over-the-air distribution update
+#   neos-update --ota-apply  download + apply an OTA delta (signature-checked
+#                          when $NEOS_OTA_KEY points to a GPG keyring)
 
 set -euo pipefail
 
 apply=0
 quiet=0
 clean=0
+ota=0
+ota_apply=0
 
 for a in "$@"; do
   case "$a" in
     --apply)    apply=1 ;;
     --quiet)    quiet=1 ;;
     --clean)    clean=1 ;;
-    -h|--help)  sed -n '2,8p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+    --ota)      ota=1 ;;
+    --ota-apply) ota=1; ota_apply=1 ;;
+    -h|--help)  sed -n '2,11p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
@@ -32,8 +39,115 @@ run_root() {
   else warn "root needed for: $*"; return 1; fi
 }
 
+# ---- Over-the-air (OTA) distribution updates ----
+OTA_URL="${NEOS_OTA_URL:-https://dl.neoos.local/dist/ota.json}"
+OTA_MARKER=/var/lib/neos/.last-ota
+
+ota_download() {
+  local out="$1"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL "$OTA_URL" -o "$out" 2>/dev/null
+  elif command -v wget >/dev/null 2>&1; then wget -q "$OTA_URL" -O "$out" 2>/dev/null
+  else return 1; fi
+}
+
+ota_jq() {
+  python3 - "$1" "$2" <<'PY' 2>/dev/null || true
+import json, sys
+m = json.load(open(sys.argv[1]))
+v = m.get(sys.argv[2], "")
+print(v if not isinstance(v, list) else " ".join(str(x) for x in v))
+PY
+}
+
+ota_check() {
+  local m="$1"
+  if [[ ! -f "$m" ]]; then warn "no manifest supplied"; return 1; fi
+  local cur new
+  cur="$(. /etc/os-release 2>/dev/null && echo "${VERSION_ID:-?}")"
+  new="$(ota_jq "$m" version)"
+  info "Current NeoOS: ${cur:-?} | OTA offers: ${new:-unknown}"
+  python3 - "$m" <<'PY' 2>/dev/null || true
+import json, sys
+m = json.load(open(sys.argv[1]))
+print("Changelog:")
+for x in m.get("changelog", []):
+    print("  -", x)
+PY
+  if [[ -n "${NEOS_OTA_KEY:-}" ]]; then
+    local sig; sig="$(mktemp)"
+    if command -v curl >/dev/null 2>&1; then curl -fsSL "${OTA_URL}.asc" -o "$sig" 2>/dev/null || true
+    else wget -q "${OTA_URL}.asc" -O "$sig" 2>/dev/null || true; fi
+    if [[ -s "$sig" ]]; then
+      if gpg --keyring "$NEOS_OTA_KEY" --verify "$sig" "$m" 2>/dev/null; then
+        log "OTA manifest signature OK"
+      else
+        warn "OTA manifest signature FAILED — aborting apply"
+      fi
+    fi
+    rm -f "$sig"
+  fi
+}
+
+ota_apply() {
+  local m="$1"
+  if [[ ! -s "$m" ]]; then warn "no manifest; aborting"; return 0; fi
+  local url new pkgs arch
+  url="$(ota_jq "$m" url)"
+  new="$(ota_jq "$m" version)"
+  pkgs="$(ota_jq "$m" packages)"
+  if [[ -z "$url" ]]; then warn "manifest has no download URL; nothing to apply"; return 0; fi
+  arch="$(mktemp)"
+  log "Downloading OTA archive: $url"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL "$url" -o "$arch" 2>/dev/null
+  elif command -v wget >/dev/null 2>&1; then wget -q "$url" -O "$arch" 2>/dev/null
+  else warn "no curl/wget; cannot download"; rm -f "$arch"; return 1; fi
+  if [[ ! -s "$arch" ]]; then warn "download failed; no changes made"; rm -f "$arch"; return 0; fi
+  if [[ -n "${NEOS_OTA_KEY:-}" ]]; then
+    local sig; sig="$(mktemp)"
+    if command -v curl >/dev/null 2>&1; then curl -fsSL "${url}.asc" -o "$sig" 2>/dev/null || true
+    elif command -v wget >/dev/null 2>&1; then wget -q "${url}.asc" -O "$sig" 2>/dev/null || true; fi
+    if [[ -s "$sig" ]]; then
+      if gpg --keyring "$NEOS_OTA_KEY" --verify "$sig" "$arch" 2>/dev/null; then
+        log "archive signature OK"
+      else
+        warn "archive signature FAILED — removing archive"
+        rm -f "$arch" "$sig"; return 1
+      fi
+    fi
+    rm -f "$sig"
+  fi
+  run_root apt-get update
+  if [[ -n "$pkgs" ]]; then
+    log "Installing OTA packages: $pkgs"
+    # shellcheck disable=SC2086
+    run_root apt-get install -y $pkgs
+  fi
+  case "$arch" in
+    *.tar.gz|*.tgz) run_root tar -xzf "$arch" -C / ;;
+    *.zip)          run_root unzip -o "$arch" -d / ;;
+    *)              log "archive format unsupported for auto-apply; left at $arch";;
+  esac
+  mkdir -p "$(dirname "$OTA_MARKER")"
+  printf '%s\n' "${new:-unknown}" > "$OTA_MARKER"
+  info "OTA applied (NeoOS ${new:-?}). Reboot to use."
+  rm -f "$arch"
+}
+
 if [[ $quiet -eq 1 ]]; then
   exec >/dev/null 2>&1
+fi
+
+if [[ $ota -eq 1 ]]; then
+  fm="$(mktemp)"
+  if ! ota_download "$fm" || [[ ! -s "$fm" ]]; then
+    rm -f "$fm"
+    warn "OTA server unreachable; no distribution update available now."
+    exit 0
+  fi
+  ota_check "$fm"
+  if [[ $ota_apply -eq 1 ]]; then ota_apply "$fm"; fi
+  rm -f "$fm"
+  exit 0
 fi
 
 log "Refreshing package lists..."

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# neos-theme — toggle Arc light/dark + Papirus icon theme
+set -euo pipefail
+var="${1:-toggle}"
+case "$var" in
+  toggle)
+    cur="$(xfconf-query -c xsettings -p /Net/ThemeName 2>/dev/null || echo Arc)"
+    if [[ "$cur" == "Arc-Dark" ]]; then nxt=Arc; else nxt=Arc-Dark; fi
+    ;;
+  dark|light)
+    if [[ "$var" == dark ]]; then nxt=Arc-Dark; else nxt=Arc; fi
+    ;;
+  *)
+    echo "usage: neos-theme {toggle|dark|light}" >&2
+    exit 2
+    ;;
+esac
+xfconf-query -c xsettings -p /Net/ThemeName -s "$nxt" 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/theme -s "$nxt" 2>/dev/null || true
+echo "theme: $nxt"

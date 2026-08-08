@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# neos-xfce — start the NeoOS XFCE desktop session (dark, bottom panel)
+set -euo pipefail
+mode="${1:-start}"
+
+ensure_x() {
+  if [[ -z "${DISPLAY:-}" ]]; then
+    if command -v vncserver >/dev/null 2>&1; then
+      mkdir -p "$HOME/.vnc"
+      vncserver -kill :1 2>/dev/null || true
+      vncserver :1 -geometry 1280x720 -depth 24 >/dev/null 2>&1 || true
+      export DISPLAY=:1
+      echo "neos-xfce: started VNC on :1 (connect VNC viewer to localhost:5901)"
+    else
+      echo "neos-xfce: no DISPLAY and no VNC server found." >&2
+      echo "neos-xfce: start XServer XSDL / VNC first, then set DISPLAY." >&2
+      return 1
+    fi
+  fi
+}
+
+case "$mode" in
+  bottom)
+    xfconf-query -c xfce4-panel -p /panels/panel-0/position \
+      -s "p=0;x=0;y=18446744073709551615" 2>/dev/null || true
+    echo "neos-xfce: panel anchored to bottom edge."
+    ;;
+  theme)
+    xfconf-query -c xsettings      -p /Net/ThemeName       -s "Arc"       2>/dev/null || true
+    xfconf-query -c xsettings      -p /Net/IconThemeName   -s "Papirus"   2>/dev/null || true
+    xfconf-query -c xfwm4          -p /general/theme        -s "Arc"       2>/dev/null || true
+    echo "neos-xfce: applied Arc-Dark / Papirus-Dark theme."
+    ;;
+  apply)
+    ensure_x
+    neos-xfce bottom
+    neos-xfce theme
+    ;;
+  off|stop)
+    pkill -f xfce4 2>/dev/null || true
+    [[ -n "${DISPLAY:-}" ]] && pkill -f "X[a-z]" 2>/dev/null || true
+    echo "neos-xfce: stopped."
+    ;;
+  *)
+    ensure_x || exit 1
+    if ! command -v xfce4-session >/dev/null 2>&1; then
+      echo "neos-xfce: xfce4-session not installed (ensure packages.xfce is in the build)." >&2
+      exit 1
+    fi
+    if ! command -v dbus-launch >/dev/null 2>&1; then
+      echo "neos-xfce: dbus-launch not installed (ensure dbus is in the build)." >&2
+      exit 1
+    fi
+    if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+      exec dbus-launch --exit-with-session xfce4-session
+    else
+      exec xfce4-session
+    fi
+    ;;
+esac

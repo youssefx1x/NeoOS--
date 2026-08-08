@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# neos-inode — filesystem inode / disk usage
+set -euo pipefail
+if [[ $# -eq 0 ]]; then
+  df -hT -i
+else
+  df -hT -i "$@"
+fi

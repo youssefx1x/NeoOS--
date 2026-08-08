@@ -25,15 +25,15 @@ WINE_VER="${WINEVER:-win10}"
 ensure_wine() {
   if ! command -v wine >/dev/null 2>&1 && ! command -v wine64 >/dev/null 2>&1; then
     log "Installing Wine"
-    local pkgs="wine winetricks wine64 libwine"
+    local pkgs=("wine" "winetricks" "wine64" "libwine")
     # wine32 (i386) is optional — only add it when a real candidate exists
-    if [[ -n "$(apt-cache policy wine32 2>/dev/null | awk '/Candidate:/{print $2}' | grep -v none)" ]]; then
-      pkgs="$pkgs wine32"
+    if apt-cache policy wine32 2>/dev/null | awk '/Candidate:/{print $2}' | grep -qv none; then
+      pkgs+=("wine32")
     fi
     if [[ $EUID -ne 0 ]]; then
-      sudo apt-get install -y $pkgs || { err "install failed"; return 1; }
+      sudo apt-get install -y "${pkgs[@]}" || { err "install failed"; return 1; }
     else
-      apt-get install -y $pkgs || { err "install failed"; return 1; }
+      apt-get install -y "${pkgs[@]}" || { err "install failed"; return 1; }
     fi
   fi
   if ! command -v winetricks >/dev/null 2>&1; then

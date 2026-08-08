@@ -27,9 +27,9 @@ record() {          # record <code> <name> <message>
   RESULTS+=("$1")
   local mark
   case "$1" in
-    0) mark="$GREEN[PASS]$RESET" ;;
-    1) mark="$YELLOW[WARN]$RESET" ;;
-    2) mark="$RED[FAIL]$RESET" ;;
+    0) mark="${GREEN}[PASS]${RESET}" ;;
+    1) mark="${YELLOW}[WARN]${RESET}" ;;
+    2) mark="${RED}[FAIL]${RESET}" ;;
   esac
   SUMMARY_LINES+=("$mark $BOLD$2$RESET $3")
 }
@@ -58,7 +58,6 @@ check_connectivity() {
 
 check_apt() {
   local rc=0
-  local issues=()
   # broken packages?
   if dpkg --audit 2>/dev/null | grep -q .; then
     rc=2
@@ -90,7 +89,7 @@ check_neolibs() {
   if command -v neolibs >/dev/null 2>&1; then
     local n
     n=$(neolibs list 2>/dev/null | grep -c '^ ' || echo 0)
-    record 0 neolibs "installed and active ($(neolibs list 2>/dev/null | grep -c '^ ' || echo 0) libraries)"
+    record 0 neolibs "installed and active ($n libraries)"
   else
     record 2 neolibs "not installed (or not on PATH)"
   fi
@@ -139,8 +138,9 @@ check_deps() {
     record 0 deps "all core tools present (git, curl, wget, bash, apt-get)"
   else
     rc=2
+    local pkgs="${missing[*]}"
     record 2 deps "missing: ${missing[*]}"
-    SUMMARY_LINES+=("    install with: $BOLD sudo apt install ${missing[*]}"$RESET)
+    SUMMARY_LINES+=("    install with: $BOLD sudo apt install $pkgs$RESET")
   fi
   return $rc
 }
@@ -226,8 +226,8 @@ for c in "${ALL_CHECKS[@]}"; do run_check "$c" || true; done
 if (( FIX )); then
   echo
   echo -e "$CYAN$BOLD Attempting safe repairs...$RESET"
-  dpkg --configure -a 2>/dev/null && echo -e "  $GREEN[ok]$RESET dpkg --configure -a" || true
-  apt-get --fix-broken install -y 2>/dev/null && echo -e "  $GREEN[ok]$RESET apt --fix-broken install" || true
+  dpkg --configure -a 2>/dev/null && echo -e "  ${GREEN}[ok]${RESET} dpkg --configure -a" || true
+  apt-get --fix-broken install -y 2>/dev/null && echo -e "  ${GREEN}[ok]${RESET} apt --fix-broken install" || true
 fi
 
 # summary

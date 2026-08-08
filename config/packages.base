@@ -39,3 +39,9 @@ iproute2
 iputils-ping
 net-tools
 ethtool
+bash-completion
+rsync
+xdg-utils
+file
+htop
+tree

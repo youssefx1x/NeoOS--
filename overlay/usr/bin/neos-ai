@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# neos-ai — on-device AI diagnostic assistant for NeoOS (idea: Qwen 2.5 0.5B).
+#
+# Backends (auto-detected, in priority order):
+#   1. HTTP chat API  — used when NEOS_AI_URL + NEOS_AI_API_KEY are set.
+#     Endpoint is OpenAI-compatible: POST to $NEOS_AI_URL/chat/completions.
+#   2. Local GGUF     — used when a model exists (NEOS_AI_MODEL) and a runner
+#     binary is found (NEOS_AI_BIN or auto-detected llama-cli). Fully offline.
+#
+# Security: only NEOS_AI_* (project) env vars are read. No platform / agent
+# credentials are ever accessed. If no backend is configured, `neos-ai` prints
+# setup instructions instead of failing.
+#
+#   neos-ai "explain high memory usage"   send a prompt, print the answer
+#   neos-ai                               read the prompt from stdin
+#   neos-ai --check                       show which backend is active
+#   neos-ai --model <path>                override the local model path
+#
+# Env (all optional; safe defaults — no secrets hard-coded):
+#   NEOS_AI_BIN           llama-cli binary path (auto-detected if unset)
+#   NEOS_AI_MODEL         GGUF model path (default: Qwen2.5-0.5B-Instruct-Q4_K_M.gguf)
+#   NEOS_AI_URL           HTTP chat API base URL
+#   NEOS_AI_API_KEY       bearer token for the HTTP API
+#   NEOS_AI_TEMPERATURE   sampling temperature (default 0.0 = deterministic)
+#   NEOS_AI_TIMEOUT       per-request timeout in seconds (default 60)
+#   NEOS_AI_MAX_TOKENS   max new tokens (default 512)
+
+set -uo pipefail
+
+NEOS_AI_BIN="${NEOS_AI_BIN:-}"
+NEOS_AI_MODEL="${NEOS_AI_MODEL:-Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
+NEOS_AI_URL="${NEOS_AI_URL:-}"
+NEOS_AI_API_KEY="${NEOS_AI_API_KEY:-}"
+NEOS_AI_TEMPERATURE="${NEOS_AI_TEMPERATURE:-0.0}"
+NEOS_AI_TIMEOUT="${NEOS_AI_TIMEOUT:-60}"
+NEOS_AI_MAX_TOKENS="${NEOS_AI_MAX_TOKENS:-512}"
+
+log()  { printf '\033[1;36m[neos-ai]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[neos-ai]\033[0m %s\n' "$*" >&2; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+detect_llama_bin() {
+  if [[ -n "$NEOS_AI_BIN" && -x "$NEOS_AI_BIN" ]]; then printf '%s' "$NEOS_AI_BIN"
+  elif have llama-cli; then printf '%s' llama-cli
+  else printf ''; fi
+}
+
+# json_escape <string> — minimal JSON string escaping for HTTP payloads.
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+# run_http <prompt>
+run_http() {
+  local prompt="$1" resp body
+  [[ -n "$NEOS_AI_URL" ]] || { warn "NEOS_AI_URL is set but empty."; return 1; }
+  have curl || { warn "curl is required for the HTTP backend."; return 1; }
+  local base="${NEOS_AI_URL%/}"
+  local data
+  data=$(printf '{"model":"%s","messages":[{"role":"system","content":"You are NeoOS AI, a terse diagnostician. Explain system problems in plain English and give one concrete fix in a short paragraph."},{"role":"user","content":"%s"}],"temperature":%s,"max_tokens":%s,"stream":false}' \
+    "${NEOS_AI_MODEL}" "$(json_escape "$prompt")" "${NEOS_AI_TEMPERATURE}" "${NEOS_AI_MAX_TOKENS}")
+  resp=$(curl -fsS --max-time "$NEOS_AI_TIMEOUT" \
+    -H "Authorization: Bearer ${NEOS_AI_API_KEY}" \
+    -H 'Content-Type: application/json' \
+    -d "$data" "${base}/chat/completions" 2>/dev/null) || { warn "request to ${base}/chat/completions failed."; return 1; }
+  # Extract "content" from an OpenAI-style choice; fall back to the raw body.
+  body=$(printf '%s' "$resp" | sed -n 's/.*"content"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | head -1)
+  if [[ -z "$body" ]]; then printf '%s\n' "$resp"; else printf '%s\n' "$body"; fi
+}
+
+# run_local <prompt>
+run_local() {
+  local prompt="$1" bin
+  bin="$(detect_llama_bin)"
+  if [[ -z "$bin" ]]; then
+    warn "no llama-cli runner found. Set NEOS_AI_BIN or install llama-cli."
+    return 1
+  fi
+  if [[ ! -e "$NEOS_AI_MODEL" ]]; then
+    warn "model not found: $NEOS_AI_MODEL"
+    warn "Download e.g. Qwen2.5-0.5B-Instruct Q4_K_M (GGUF) and set NEOS_AI_MODEL."
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  "$bin" -m "$NEOS_AI_MODEL" -p "$prompt" --temperature "$NEOS_AI_TEMPERATURE" --max-tokens "$NEOS_AI_MAX_TOKENS" 2>/dev/null || return 1
+}
+
+show_check() {
+  log "NeoOS AI helper"
+  if [[ -n "$NEOS_AI_URL" ]]; then
+    printf '  backend: HTTP chat API\n  endpoint: %s/chat/completions\n  model:   %s\n  key:     %s\n' \
+      "${NEOS_AI_URL%/}" "${NEOS_AI_MODEL}" "${NEOS_AI_API_KEY:+set}"
+    have curl || warn "curl is not installed (required for HTTP backend)."
+  else
+    local bin
+    bin="$(detect_llama_bin)"
+    printf '  backend: local GGUF (%s)\n  model:   %s\n' \
+      "${bin:-none (install llama-cli)}" "${NEOS_AI_MODEL}"
+    [[ -e "$NEOS_AI_MODEL" ]] || warn "model file not found: $NEOS_AI_MODEL"
+  fi
+  if [[ -z "$NEOS_AI_URL" ]] && [[ -z "$(detect_llama_bin)" || ! -e "$NEOS_AI_MODEL" ]]; then
+    echo "  hint:    run 'neos-ai --check' after setup; see /etc/neos/ai.conf.example"
+  fi
+}
+
+main() {
+  local prompt="" model_override="" mode=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --check) mode=check; shift ;;
+      --model)
+        [[ $# -ge 2 ]] || { warn "--model requires an argument."; return 2; }
+        model_override="$2"; shift 2 ;;
+      -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; return 0 ;;
+      --) shift; while [[ $# -gt 0 ]]; do prompt+="${prompt:+ }$1"; shift; done ;;
+      -*) warn "unknown option: $1"; return 2 ;;
+      *) prompt+="${prompt:+ }$1"; shift ;;
+    esac
+  done
+
+  if [[ -n "$model_override" ]]; then NEOS_AI_MODEL="$model_override"; fi
+
+  if [[ "$mode" == "check" ]]; then show_check; return 0; fi
+
+  if [[ -z "$prompt" ]]; then
+    if [[ -t 0 && ! -p /dev/stdin ]]; then
+      warn "no prompt given (and no piped stdin). Try: neos-ai \"explain X\"  or  neos-ai --check"
+      return 1
+    fi
+    prompt="$(cat)"
+  fi
+  [[ -n "$prompt" ]] || { warn "empty prompt."; return 1; }
+
+  if [[ -n "$NEOS_AI_URL" ]]; then
+    run_http "$prompt"
+  else
+    run_local "$prompt"
+  fi
+}
+
+main "$@"

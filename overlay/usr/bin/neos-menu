@@ -30,9 +30,39 @@ run_as_root() {
   elif command -v sudo >/dev/null 2>&1; then
     sudo "$@"
   else
-    echo "root required: $*"
+     echo "root required: $*"
     return 1
   fi
+}
+
+# safe_tokens <name> — read a line, split into array SAFETOKENS, rejecting
+# shell metacharacters so menu-driven commands can't be injected. Each token
+# must match a conservative whitelist. Usage:
+#   read -r -p "pkg command: " a; safe_tokens "pkg" <<<"$a" && pkg "${SAFETOKENS[@]}"
+SAFETOKENS=()
+err_msg() { printf '\033[1;31m[neos-menu]\033[0m %s\n' "$*" >&2; }
+
+safe_tokens() {
+  local label="$1" line t
+  read -r line
+  SAFETOKENS=()
+  if [[ -z "$line" ]]; then
+    err_msg "empty input"
+    return 1
+  fi
+  # Split into tokens on whitespace only; no globbing, no field splitting of
+  # the results, and crucially no eval, so values are never executed.
+  IFS=$' \t' read -r -a SAFETOKENS <<< "$line"
+  # Validate each token against a conservative whitelist of characters that
+  # are valid in package/script names (alphanumerics plus common flags and
+  # separators). Anything else is rejected rather than passed downstream.
+  for t in "${SAFETOKENS[@]}"; do
+    if ! printf '%s' "$t" | grep -qE '^[A-Za-z0-9_./+:@~=-]+$'; then
+      err_msg "invalid token in $label: '$t'"
+      return 1
+    fi
+  done
+  return 0
 }
 
 main_menu() {
@@ -234,7 +264,7 @@ dev_menu() {
     "Install lang"  "neos-lang install (python, node, rust...)" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
-    "New project")  read -r -p "template + name (e.g. bash mytool): " a; neos-new $a 2>&1 || true; pause;;
+    "New project")  read -r -p "template + name (e.g. bash mytool): " a; safe_tokens neos-new <<<"$a" && neos-new "${SAFETOKENS[@]}" 2>&1 || true; pause;;
     "Languages")    neos-lang list 2>&1 || true; pause;;
     "Install lang") read -r -p "language (python|node|rust|go|java|ruby|php): " l; neos-lang install "$l" 2>&1 || true; pause;;
     *) return 0;;
@@ -257,10 +287,10 @@ tools_menu() {
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "neos-help")     neos-help 2>&1 || true; pause;;
-    "pkg manager")   read -r -p "pkg command (e.g. update|install vim): " a; pkg $a 2>&1 || true; pause;;
+    "pkg manager")   read -r -p "pkg command (e.g. update|install vim): " a; safe_tokens pkg <<<"$a" && pkg "${SAFETOKENS[@]}" 2>&1 || true; pause;;
     "pkg self-update") pkg self-update 2>&1 || true; pause;;
     "neos-update")   neos-update 2>&1 || true; pause;;
-    "neos-distro")   read -r -p "neos-distro command (e.g. list|available|install debian): " a; neos-distro $a 2>&1 || true; pause;;
+    "neos-distro")   read -r -p "neos-distro command (e.g. list|available|install debian): " a; safe_tokens neos-distro <<<"$a" && neos-distro "${SAFETOKENS[@]}" 2>&1 || true; pause;;
     "neos-backup")   neos-backup 2>&1 || true; pause;;
     "neos-fetch")    neos-fetch; pause;;
     "neos-ports")    neos-ports 2>&1 || true; pause;;
@@ -327,8 +357,8 @@ system_menu() {
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "Update system")    run_as_root apt update && run_as_root apt upgrade -y || pause;;
-    "Install packages") read -r -p "packages: " pkgs; run_as_root apt install -y $pkgs 2>&1 || true; pause;;
-    "Remove packages")  read -r -p "packages: " pkgs; run_as_root apt remove -y $pkgs 2>&1 || true; pause;;
+    "Install packages") read -r -p "packages: " pkgs; safe_tokens "package list" <<<"$pkgs" && run_as_root apt install -y "${SAFETOKENS[@]}" 2>&1 || true; pause;;
+    "Remove packages")  read -r -p "packages: " pkgs; safe_tokens "package list" <<<"$pkgs" && run_as_root apt remove -y "${SAFETOKENS[@]}" 2>&1 || true; pause;;
     "Install to disk")  neos-installer 2>&1 || pause;;
     "Users")            users_menu;;
     "Interactive shell") bash;;

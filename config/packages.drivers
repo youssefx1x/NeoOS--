@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------
+# NeoOS driver manifest — source of truth read by `neos-uranium`.
+# One package per line; lines beginning with '#' are comments.
+# These packages are installed at runtime (network) by neos-uranium.
+# ---------------------------------------------------------------------
+
+# --- GPU / Mesa / Vulkan ---
+mesa-utils
+libgl1-mesa-dri
+mesa-vulkan-drivers
+vulkan-tools
+libva-mesa-driver
+mesa-va-drivers
+intel-media-va-driver
+
+# --- AMD / Radeon firmware ---
+firmware-amd-graphics
+
+# --- NVIDIA (proprietary) ---
+nvidia-driver
+nvidia-settings
+firmware-nvidia
+
+# --- Generic Linux firmware ---
+firmware-linux
+firmware-linux-nonfree
+firmware-misc-nonfree
+
+# --- WiFi / wireless firmware ---
+firmware-realtek
+firmware-atheros
+firmware-iwlwifi
+firmware-brcm80211
+firmware-bluetooth
+
+# --- Networking tools ---
+wireless-tools
+iw
+rfkill
+wpasupplicant
+network-manager
+network-manager-wifi
+
+# --- Bluetooth ---
+bluez
+bluez-tools
+
+# --- Audio ---
+alsa-utils
+pipewire
+pipewire-pulse
+pipewire-alsa
+
+# --- Printing ---
+cups
+printer-driver-gutenprint
+
+# --- Hardware inventory + QEMU guest agent (virtio/time sync) ---
+hwdata
+pciutils
+usbutils
+lshw
+qemu-guest-agent
