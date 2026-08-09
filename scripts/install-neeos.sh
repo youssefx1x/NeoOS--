@@ -3,13 +3,13 @@
 # via proot-distro.
 #
 # Downloads the NeoOS proot rootfs tarball for the current architecture from
-# the latest GitHub Release and installs it, then drops you in.
+# the GitHub Release (default tag 1.1.0) and installs it, then drops you in.
 #
 #   curl -fsSL https://raw.githubusercontent.com/youssefx1x/NeoOS--/main/scripts/install-neeos.sh | bash
 #
 # Environment overrides:
 #   NEOS_REPO        GitHub repo (default youssefx1x/NeoOS--)
-#   NEOS_RELEASE     exact tag to fetch (default: latest)
+#   NEOS_RELEASE     exact tag to fetch (default: 1.1.0)
 #   NEOS_INSTALL_TARBALL  local tarball path to use instead of downloading
 #   NEOS_NAME        container name (default neoos)
 #   NEOS_NOLOGIN     1 = install only, do not start login shell
@@ -26,17 +26,23 @@ case "$arch" in
 esac
 
 TARBALL="${NEOS_INSTALL_TARBALL:-}"
+# Support an HTTP(S) mirror/URL instead of a GitHub Release (no-GitHub installs).
+if [[ "$TARBALL" == http://* || "$TARBALL" == https://* ]]; then
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' EXIT
+  local_tarball="$tmpdir/$asset"
+  echo "install-neeos: downloading NeoOS from $TARBALL"
+  curl -fL "$TARBALL" -o "$local_tarball"
+  TARBALL="$local_tarball"
+fi
 if [[ -n "$TARBALL" && ! -f "$TARBALL" ]]; then
   echo "install-neeos: local tarball not found: $TARBALL" >&2
   exit 1
 fi
 
-if [[ -z "$TARBALL" ]]; then
-  if [[ -n "${NEOS_RELEASE:-}" ]]; then
-    url="https://github.com/$NEOS_REPO/releases/download/$NEOS_RELEASE/$asset"
-  else
-    url="https://github.com/$NEOS_REPO/releases/latest/download/$asset"
-  fi
+if [[ -z "$TARBALL" && -z "${NEOS_INSTALL_TARBALL:-}" ]]; then
+  NEOS_RELEASE="${NEOS_RELEASE:-1.1.0}"
+  url="https://github.com/$NEOS_REPO/releases/download/$NEOS_RELEASE/$asset"
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
   TARBALL="$tmpdir/$asset"

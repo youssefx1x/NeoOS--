@@ -436,24 +436,42 @@ can restore the installed package list on a fresh install.
 NeoOS runs on Android phones via Termux + proot-distro. Two ways are
 supported, matching modern (v4/v5) and older proot-distro.
 
-### 1. Modern proot-distro — tarball install (recommended)
+### 1. One-command install (recommended)
 
-Build the proot tarball (aarch64 by default; use `NEOS_ARCH=aarch64`
-or `NEOS_ARCH=arm64` for phone CPUs):
+The fastest way to get NeoOS on your phone is the installer script, which
+downloads the correct release tarball for your CPU and installs it with
+proot-distro in one step — no build, no manual download:
 
 ```sh
-./build.sh proot                                    # build neoos-proot-aarch64.tar.xz
+# Runs on arm64 phones/tablets (detects aarch64 automatically).
+curl -fsSL https://raw.githubusercontent.com/youssefx1x/NeoOS--/main/scripts/install-neeos.sh | bash
 ```
 
-Then on Termux:
+The script picks `neoos-proot-aarch64.tar.xz` on arm64 or
+`neoos-proot-amd64.tar.xz` on x86_64, fetches it from the
+[NeoOS GitHub Release](https://github.com/youssefx1x/NeoOS--/releases),
+installs it as `neoos`, and logs you in. Override the release with
+`NEOS_RELEASE=1.1.0`, the container name with `NEOS_NAME=neoos`, or install
+from a local/HTTP tarball with `NEOS_INSTALL_TARBALL=<path-or-url>`:
+
+```sh
+# Example: install from an arbitrary HTTP URL (e.g. a local mirror)
+NEOS_INSTALL_TARBALL=https://example.org/neoos-proot-aarch64.tar.xz \
+  curl -fsSL https://raw.githubusercontent.com/youssefx1x/NeoOS--/main/scripts/install-neeos.sh | bash
+```
+
+### 2. Modern proot-distro — install from a release tarball
+
+NeoOS publishes prebuilt rootfs tarballs for proot-distro in the
+[GitHub Releases](https://github.com/youssefx1x/NeoOS--/releases). Point
+proot-distro directly at the release URL for your architecture:
 
 ```sh
 # Install proot-distro (if not present)
 pkg install proot-distro
 
-# Install NeoOS from the tarball (the .tar.xz stays on your phone,
-# e.g. in ~/storage/downloads)
-proot-distro install ./neoos-proot-aarch64.tar.xz --name neoos
+# Install NeoOS straight from the release URL (proot-distro fetches the .tar.xz)
+proot-distro install https://github.com/youssefx1x/NeoOS--/releases/download/1.1.0/neoos-proot-aarch64.tar.xz --name neoos   # arm64 phone
 
 # Log in
 proot-distro login neoos
@@ -462,11 +480,13 @@ proot-distro login neoos
 neos-menu
 ```
 
-The tarball is a plain rootfs (strip components 1), so modern
-proot-distro v4/v5 installs it directly without a plugin. The classic
-plugin is still shipped for older versions (see below).
+(Use `neoos-proot-amd64.tar.xz` for x86_64 devices.) The tarball is a plain
+rootfs (strip components 1), so modern proot-distro v4/v5 installs it directly
+without a plugin. Prefer to build it yourself? Run `./build.sh proot` and
+install the local `./neoos-proot-aarch64.tar.xz` with the same command. The
+classic plugin is still shipped for older proot-distro versions (see below).
 
-### 2. Classic proot-distro — plugin API
+### 3. Classic proot-distro — plugin API
 
 For proot-distro versions that don't accept raw tarballs, the plugin at
 `proot-distro/neoos.sh` provides the classic API. On Termux, place it
