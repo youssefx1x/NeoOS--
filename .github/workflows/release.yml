@@ -1,0 +1,84 @@
+name: Release NeoOS proot rootfs
+
+# Builds NeoOS proot-distro tarballs for AMD64 and ARM64 and attaches them
+# to a GitHub Release. Triggered by pushing a versioned tag (e.g. `1.1.0`
+# or `1.1.0-aarch64`), or manually from the Actions tab.
+
+on:
+  push:
+    tags:
+      - '[0-9]*'            # version tags (1.1.0, 1.2.0, ...)
+      - '*-aarch64'
+      - '*-amd64'
+      - '*-arm64'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (creates a release)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write            # to create the release + upload assets
+
+env:
+  NEOS_RELEASE_TAG: ${{ github.ref_name }}
+
+jobs:
+  build-amd64:
+    name: Build amd64 rootfs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y mmdebstrap debootstrap xz-utils
+      - name: Build proot tarball (amd64)
+        run: |
+          NEOS_ARCH=amd64 bash ./build.sh proot
+          ls -lh build/neoos-proot-amd64.tar.xz
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neoos-proot-amd64
+          path: build/neoos-proot-amd64.tar.xz
+
+  build-arm64:
+    name: Build aarch64 rootfs (arm64 runner)
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y mmdebstrap debootstrap xz-utils
+      - name: Build proot tarball (aarch64 -> arm64)
+        run: |
+          # build-proot.sh defaults NEOS_ARCH=aarch64; build-rootfs.sh
+          # maps aarch64 -> arm64 for debootstrap/mmdebstrap.
+          bash ./build.sh proot
+          ls -lh build/neoos-proot-aarch64.tar.xz
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neoos-proot-aarch64
+          path: build/neoos-proot-aarch64.tar.xz
+
+  publish:
+    name: Create release
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.tag != '' && startsWith(inputs.tag, 'v') == false))
+    steps:
+      - name: Download both tarballs
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NeoOS ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/neoos-proot-amd64/neoos-proot-amd64.tar.xz
+            artifacts/neoos-proot-aarch64/neoos-proot-aarch64.tar.xz
+          allow_recreate: true

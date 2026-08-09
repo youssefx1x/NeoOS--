@@ -15,6 +15,10 @@ NEOS_KEYRING="${NEOS_KEYRING:-/usr/share/keyrings/debian-archive-keyring.gpg}"
 NEOS_TARBALL="${NEOS_TARBALL:-$REPO_ROOT/build/neoos-rootfs.tar.xz}"
 NEOS_COMPONENTS="${NEOS_COMPONENTS:-main,contrib,non-free-firmware}"
 
+# Map NeoOS arch aliases to Debian/Ubuntu arch names used by
+# mmdebstrap/debootstrap. (e.g. aarch64 -> arm64, x86_64 -> amd64.)
+case "$NEOS_ARCH" in aarch64) _deb_arch="arm64";; x86_64) _deb_arch="amd64";; *) _deb_arch="$NEOS_ARCH";; esac
+
 log() { printf '\033[1;36m[neos-build]\033[0m %s\n' "$*"; }
 
 usage() {
@@ -87,15 +91,16 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     fi
     mmdebstrap \
       --variant=minbase \
-      --arch="$NEOS_ARCH" \
+      --arch="$_deb_arch" \
       --components="$NEOS_COMPONENTS" \
       "${keyring_args[@]}" \
+      ${NEOS_QEMU:+--qemu "$NEOS_QEMU" --crossdeps} \
        --include="$(cat "$REPO_ROOT/config/packages.base" "$REPO_ROOT/config/packages.xfce" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//')" \
       "$NEOS_SUITE" "$NEOS_ROOTFS"
   else
     # debootstrap fallback (Termux: mmdebstrap unavailable). The --foreign
     # first stage runs on the host and never executes target binaries.
-    deboot_args=(--foreign --arch="$NEOS_ARCH" --variant=minbase)
+    deboot_args=(--foreign --arch="$_deb_arch" --variant=minbase)
     if [[ -n "$NEOS_KEYRING" ]]; then
       deboot_args+=(--keyring="$NEOS_KEYRING")
     else
