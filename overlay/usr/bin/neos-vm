@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-vm — NeoVM: QEMU/KVM virtual machine management
+set -euo pipefail
+VMDIR="${NEOS_VM_DIR:-$HOME/.neos-vms}"
+case "${1:-list}" in
+  list|ls) [[ -d "$VMDIR" ]] && ls -1 "$VMDIR" 2>/dev/null || echo "(no VMs in $VMDIR)" ;;
+  start) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-vm start <vm>" >&2; exit 2; }
+    qemu-system-x86_64 -enable-kvm "$VMDIR/$id/$id.img" 2>/dev/null || echo "VM '$id' not found / qemu missing" ;;
+  *) echo "usage: neos-vm [list|start <vm>]" >&2; exit 2 ;;
+esac

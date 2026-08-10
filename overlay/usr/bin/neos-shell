@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# neos-shell — NeoShell: list available shells & launch default
+set -euo pipefail
+case "${1:-list}" in
+  list|ls) printf '%-10s %s\n' "SHELL" "PATH"; for s in fish zsh bash dash; do p="$(command -v "$s" 2>/dev/null)"; [[ -n "$p" ]] && printf '%-10s %s\n' "$s" "$p"; done ;;
+  go|run) exec "${SHELL:-/bin/bash}" ;;
+  *) echo "usage: neos-shell [list|go]" >&2; exit 2 ;;
+esac

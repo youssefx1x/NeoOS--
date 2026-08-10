@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# neos-power — NeoPower: power/battery profiling & status
+set -euo pipefail
+case "${1:-status}" in
+  status) neos-battery ;;
+  profile)
+    case "${2:-balanced}" in
+      performance) echo "cpu governor: performance" ;;
+      balanced) echo "cpu governor: schedutil" ;;
+      powersave|power) echo "cpu governor: powersave" ;;
+      *) echo "usage: neos-power profile [performance|balanced|powersave]" >&2; exit 2 ;;
+    esac ;;
+  *) echo "usage: neos-power [status|profile <performance|balanced|powersave>]" >&2; exit 2 ;;
+esac

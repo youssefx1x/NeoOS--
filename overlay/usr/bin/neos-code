@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# neos-code — NeoCode IDE launcher (vscode/nvim/vim/nano/vi)
+set -euo pipefail
+case "${1:-edit}" in
+  list) for e in code codium nvim vim nano emacs; do command -v "$e" >/dev/null 2>&1 && echo "$e"; done ;;
+  edit) shift || true
+    if   command -v code  >/dev/null 2>&1; then exec code  "$@"
+    elif command -v nvim  >/dev/null 2>&1; then exec nvim  "$@"
+    elif command -v nano  >/dev/null 2>&1; then exec nano  "$@"
+    else exec vi "$@"
+    fi ;;
+  *) echo "usage: neos-code [list|edit <file>]" >&2; exit 2 ;;
+esac

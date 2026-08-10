@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-logs — NeoLogs: recent system logs (journalctl/syslog tail)
+set -euo pipefail
+n="${1:-20}"
+if command -v journalctl >/dev/null 2>&1; then
+  journalctl -n "$n" --no-pager
+elif [[ -r /var/log/syslog ]]; then tail -n "$n" /var/log/syslog
+elif [[ -r /var/log/messages ]]; then tail -n "$n" /var/log/messages
+else echo "neos-logs: no journal/syslog available" >&2; exit 1
+fi

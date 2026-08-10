@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-recovery — NeoRecovery: snapshot restore & rollback entry point
+set -euo pipefail
+case "${1:-status}" in
+  status|snapshots) neos-snapshots ;;
+  rollback|restore) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-recovery rollback <id>" >&2; exit 2; }
+    neos-pkg rollback "$id" 2>/dev/null || echo "no rollback target — see 'neos-snapshots'" ;;
+  boot) echo "neos-recovery boot: reboot into recovery (not configured)" >&2; exit 1 ;;
+  *) echo "usage: neos-recovery [status|rollback <id>|boot]" >&2; exit 2 ;;
+esac

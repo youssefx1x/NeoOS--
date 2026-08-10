@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# neos-wm — NeoWM: Wayland window management helpers
+set -euo pipefail
+case "${1:-status}" in
+  status) [[ -n "${WAYLAND_DISPLAY:-}" ]] && echo "compositor: $WAYLAND_DISPLAY" || echo "no Wayland compositor running" ;;
+  list) command -v wlr-info >/dev/null 2>&1 && wlr-info || echo "wayland not active (no WAYLAND_DISPLAY)" ;;
+  *) echo "usage: neos-wm [status|list]" >&2; exit 2 ;;
+esac

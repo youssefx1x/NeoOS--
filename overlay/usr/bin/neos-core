@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# neos-core — NeoCore system API (status/info/services/diagnose/repair)
+set -euo pipefail
+NEOCORE_LIB=""
+for __c in /usr/lib/neos/libneocore.sh "$(dirname "$0")/../lib/neos/libneocore.sh"; do
+  [[ -f "$__c" ]] && NEOCORE_LIB="$__c" && break
+done
+[[ -n "$NEOCORE_LIB" ]] && . "$NEOCORE_LIB"
+sub="${1:-status}"; shift || true
+case "$sub" in
+  status) neocore_status ;;
+  info) neocore_info 2>/dev/null || { echo "arch=$(uname -m)"; grep -E '^(NAME|VERSION|PRETTY_NAME)=' /etc/os-release 2>/dev/null; } ;;
+  services) neocore_services 2>/dev/null || systemctl list-units --type=service --state=running 2>/dev/null | head -n 20 || echo "no systemd" ;;
+  diagnose|doctor) neocore_diagnose 2>/dev/null || neos-health || true ;;
+  repair|fix) echo "neos-core repair: run 'neos-doctor --fix' as root" >&2; exit 1 ;;
+  version|-v|--version) echo "NeoCore ${NEOCORE_VERSION:-1.1.0} (NeoAPI ${NEOAPI_VERSION:-1.1.0})" ;;
+  events) neocore_events ;;
+  config) neocore_config_get "$1" "${2:-}" || true ;;
+  *) echo "usage: neos-core [status|info|services|diagnose|repair|version|events|config <key>]" >&2; exit 2 ;;
+esac

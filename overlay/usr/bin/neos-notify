@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# neos-notify — NeoNotify: unified desktop notifications
+set -euo pipefail
+case "${1:-}" in
+  ""|send) notify-send "${*:-NeoOS}" 2>/dev/null || echo "neos-notify: notify-send not available (libnotify)" >&2 ;;
+  test) notify-send "NeoOS" "NeoNotify test" 2>/dev/null || echo "neos-notify: notify-send unavailable" >&2 ;;
+  *) echo "usage: neos-notify [send <msg> | test]" >&2; exit 2 ;;
+esac

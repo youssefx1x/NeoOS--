@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-repo — NeoRepo: package repository infrastructure (sources) status
+set -euo pipefail
+echo "NeoRepo sources:"
+[[ -r /etc/apt/sources.list ]] && cat /etc/apt/sources.list
+for f in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+  [[ -r "$f" ]] && { echo ":: $f"; cat "$f"; } 2>/dev/null || true
+done
+case "${1:-}" in
+  update) command -v apt-get >/dev/null 2>&1 && apt-get update || echo "apt-get unavailable" ;;
+  *) ;;
+esac

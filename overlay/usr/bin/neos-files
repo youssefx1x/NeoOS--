@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# neos-files — NeoFiles: file manager (ranger/list)
+set -euo pipefail
+case "${1:-list}" in
+  list|ls) shift || true
+    if command -v ranger >/dev/null 2>&1; then exec ranger "${1:-$PWD}"
+    else exec ls -lah "${1:-$PWD}"; fi ;;
+  *) exec ls -lah "$@" ;;
+esac

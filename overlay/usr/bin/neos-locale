@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-locale — NeoLocalization: locale list/tz (language & timezone)
+set -euo pipefail
+case "${1:-list}" in
+  list|locales) locale -a 2>/dev/null | head -n 30 ;;
+  tz|timezone) timedatectl show -p Timezone 2>/dev/null | cut -d= -f2 || cat /etc/timezone 2>/dev/null || echo "n/a" ;;
+  set-tz) tz="${2:-}"; [[ -z "$tz" ]] && { echo "usage: neos-locale set-tz <Zone/Region>" >&2; exit 2; }
+    timedatectl set-timezone "$tz" 2>/dev/null || { echo "$tz" > /etc/timezone 2>/dev/null || echo "neos-locale: needs root" >&2; } ;;
+  *) echo "usage: neos-locale [list|tz|set-tz <Zone/Region>]" >&2; exit 2 ;;
+esac

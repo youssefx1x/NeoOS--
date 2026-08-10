@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-perf — NeoPerformance: system resource profiling
+set -euo pipefail
+case "${1:-top}" in
+  top)
+    printf 'load average: '; tr '\0' ' ' </proc/loadavg 2>/dev/null; echo
+    ps -eo pid,user,pcpu,pmem,comm --sort=-pcpu 2>/dev/null | head -n 11
+    ;;
+  mem) free -h 2>/dev/null || awk '/^MemTotal:/{t=$2}/^MemAvailable:/{a=$2}/^SwapTotal:/{st=$2}/^SwapFree:/{sf=$2}END{printf "total %dM used %dM free %dM | swap total %dM\n",t/1024,(t-a)/1024,a/1024,st/1024}' /proc/meminfo ;;
+  io) iostat 2>/dev/null || head -n 10 /proc/diskstats 2>/dev/null || echo "iostat/diskstats unavailable" ;;
+  *) echo "usage: neos-perf [top|mem|io]" >&2; exit 2 ;;
+esac

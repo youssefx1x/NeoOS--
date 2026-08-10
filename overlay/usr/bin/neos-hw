@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# neos-hw — NeoHardware: detect CPU/memory/disks/PCI/USB
+set -euo pipefail
+case "${1:-detect}" in
+  detect|list)
+    awk -F: '/^model name/{print "CPU: "$2; exit}' /proc/cpuinfo 2>/dev/null || echo "CPU: n/a"
+    awk '/^MemTotal:/{printf "Memory: %d MB\n", $2/1024}' /proc/meminfo 2>/dev/null || echo "Memory: n/a"
+    echo "Disks:"; lsblk -o NAME,SIZE,TYPE,MOUNTPOINT 2>/dev/null || echo "  lsblk unavailable"
+    echo "PCI:"; { lspci 2>/dev/null || echo "  lspci unavailable"; } | head -n 10
+    echo "USB:"; { lsusb 2>/dev/null || echo "  lsusb unavailable"; } | head -n 10
+    ;;
+  *) echo "usage: neos-hw [detect]" >&2; exit 2 ;;
+esac

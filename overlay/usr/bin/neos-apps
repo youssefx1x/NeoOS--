@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-apps — NeoApps native application framework (list/run apps)
+set -euo pipefail
+APPDIR="${NEOS_APPS_DIR:-/opt/neos-apps}"
+case "${1:-list}" in
+  list|ls) [[ -d "$APPDIR" ]] && ls "$APPDIR" 2>/dev/null | head -n 40 || echo "(no apps in $APPDIR)" ;;
+  info) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-apps info <app>" >&2; exit 2; }; ls "$APPDIR/$id" 2>/dev/null || echo "app '$id' not found" ;;
+  run) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-apps run <app> [args]" >&2; exit 2; }; exec "$APPDIR/$id/bin/$id" "${@:3}" ;;
+  *) echo "usage: neos-apps [list|info <app>|run <app> [args]]" >&2; exit 2 ;;
+esac

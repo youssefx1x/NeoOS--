@@ -66,8 +66,8 @@ EOF
   one neos-launch "Enter or create a Project Capsule workspace (neos launch)"
 
   heading "Recovery & maintenance"
-  one neos-doctor "NeoPulse human-readable health check (neos doctor)"
-  one neos-doctor-ai "Doctor with AI diagnosis: neos doctor --ai (uses neos-ai)"
+   one neos-doctor "NeoDoctor: automatic diagnostics & self-repair"
+   one neos-doctor-ai "Doctor with AI diagnosis: neos-doctor --ai (uses neos-ai)"
   one neos-clean "Free disk by cleaning caches/logs/temp (neos clean)"
   one neos-fix   "Automatic repair: dpkg/apt --fix-broken + autoremove (neos fix)"
   one neos-ai    "On-device AI assistant (Qwen 2.5 0.5B local or HTTP backend)"
@@ -103,6 +103,41 @@ EOF
   heading "NeoLIBs"
   one neolibs  "Multi-version shared-library manager + native NeoAPI (libneo.so C ABI)"
 
+  heading "NeoX architecture (system components)"
+  one neos-core      "NeoCore: system API (status/info/services/diagnose)"
+  one neos-libs     "NeoLIBs: native C-library API (libneo.so / NeoAPI)"
+  one neos-pkg      "NeoPkg 2.0: unified package manager"
+  one neos-security "NeoSecurity: SUID/writable audit & package verification"
+  one neos-agent    "NeoAgent: system agent (controlled capabilities)"
+  one neos-apps     "NeoApps: native application framework"
+  one neos-store    "NeoStore: app/package store browser"
+  one neos-shell    "NeoShell: list shells & launch default"
+  one neos-desktop  "NeoDesktop: desktop session (xfce/wayland/gui)"
+  one neos-wm       "NeoWM: Wayland window management"
+  one neos-mobile   "NeoMobile: Termux/proot Android helpers"
+  one neos-hw       "NeoHardware: CPU/memory/disks/PCI/USB detection"
+  one neos-doctor   "NeoDoctor: auto diagnostics & self-repair"
+  one neos-recovery "NeoRecovery: snapshot restore & rollback"
+  one neos-snapshots "NeoSnapshots: NeoPkg transaction snapshots"
+  one neos-sandbox  "NeoSandbox: command isolation (bwrap/firejail)"
+  one neos-vm       "NeoVM: QEMU/KVM virtual machine management"
+  one neos-dev      "NeoDev: developer toolchains & projects"
+  one neos-code     "NeoCode: IDE launcher"
+  one neos-files    "NeoFiles: file manager (ranger/list)"
+  one neos-search   "NeoSearch: system-wide content search"
+  one neos-notify   "NeoNotify: desktop notifications"
+  one neos-logs     "NeoLogs: recent system logs"
+  one neos-config   "NeoConfig: NeoOS configuration store"
+  one neos-power    "NeoPower: power/battery profiling"
+  one neos-perf     "NeoPerformance: resource profiling"
+  one neos-access   "NeoAccessibility: reader/zoom/keyboard"
+  one neos-locale   "NeoLocalization: locale & timezone"
+  one neos-test     "NeoTest: component/system test suites"
+  one neos-build    "NeoBuild: ISO/rootfs/proot build driver"
+  one neos-sdk      "NeoSDK: NeoAPI SDK env & headers"
+  one neos-repo     "NeoRepo: package repository sources"
+  one neos-model    "NeoModel: local AI model management"
+
   printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\033[0m\n'
 }
 
@@ -135,6 +170,11 @@ summary_table() {
     neos-wayland neos-wine neos-winetricks neos-winevm \
     neos-uranium neos-xfce neos-brightness neos-audio neos-mounts \
     neos-inode neos-sensors neos-grep neos-diff neos-archive neos-cipher neos-theme \
+    neos-core neos-libs neos-pkg neos-security neos-agent neos-apps neos-store \
+    neos-shell neos-desktop neos-wm neos-mobile neos-hw neos-doctor neos-recovery \
+    neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search \
+    neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale \
+    neos-test neos-build neos-sdk neos-repo neos-model \
     neolibs; do
     if [[ -f "$(dirname "$0")/$cmd" ]] || command -v "$cmd" >/dev/null 2>&1; then
       summary=$(grep -m1 '^# [a-z].* —' "$(dirname "$0")/$cmd" 2>/dev/null | sed 's/^# //; s/ — /: /')
@@ -151,7 +191,12 @@ list_only() {
     'neos-health neos-users neos-guest neos-installer neos-distro' \
     'neos-wayland neos-wine neos-winetricks neos-winevm neos-uranium neos-xfce neos-mirror' \
     'neos-brightness neos-audio neos-mounts neos-inode neos-sensors' \
-     'neos-grep neos-diff neos-archive neos-cipher neos-theme neo neolibs'
+     'neos-grep neos-diff neos-archive neos-cipher neos-theme neo neolibs' \
+     'neos-core neos-libs neos-pkg neos-security neos-agent neos-apps neos-store' \
+     'neos-shell neos-desktop neos-wm neos-mobile neos-hw neos-doctor neos-recovery' \
+     'neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search' \
+     'neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale' \
+     'neos-test neos-build neos-sdk neos-repo neos-model'
 }
 
 case "${1:-}" in

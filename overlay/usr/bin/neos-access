@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# neos-access — NeoAccessibility: screen reader/zoom/keyboard helpers
+set -euo pipefail
+case "${1:-status}" in
+  status)
+    for a in orca wm-zoom kmag; do command -v "$a" >/dev/null 2>&1 && echo "$a: available" || true; done
+    [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] && echo "gui: active" || echo "gui: inactive"
+    ;;
+  orca) command -v orca >/dev/null 2>&1 && exec orca "$@" || echo "neos-access: orca not installed" >&2 ;;
+  *) echo "usage: neos-access [status|orca <args>]" >&2; exit 2 ;;
+esac

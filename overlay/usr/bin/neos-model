@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# neos-model — NeoModel: local AI model management
+set -euo pipefail
+MDIR="${NEOS_MODELS_DIR:-$HOME/.neos-models}"
+case "${1:-list}" in
+  list|ls) [[ -d "$MDIR" ]] && ls -1 "$MDIR" 2>/dev/null || echo "(no local models in $MDIR)" ;;
+  path) [[ -n "${2:-}" ]] && echo "$MDIR/${2}" || printf '%s\n' "$MDIR" ;;
+  pull) echo "neos-model pull: download a model via 'neo ai --model <name>'" >&2 ;;
+  *) echo "usage: neos-model [list|path <id>|pull <id>]" >&2; exit 2 ;;
+esac

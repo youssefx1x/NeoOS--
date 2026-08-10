@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# neos-build — NeoBuild: ISO/rootfs/package build system driver
+set -euo pipefail
+SDIR=""
+for d in /usr/lib/neos/scripts /opt/neos/scripts /usr/share/neos/scripts "$(dirname "$0")"; do
+  if [[ -f "$d/build-rootfs.sh" ]]; then SDIR="$d"; break; fi
+done
+SDIR="${SDIR:-/opt/neos/scripts}"
+case "${1:-help}" in
+  rootfs) exec "$SDIR/build-rootfs.sh" "${@:2}" ;;
+  proot) exec "$SDIR/build-proot.sh" "${@:2}" ;;
+  iso) exec "$SDIR/build-iso.sh" "${@:2}" ;;
+  all) exec "$SDIR/build.sh" all ;;
+  clean) exec "$SDIR/build.sh" clean ;;
+  help|-h|--help) echo "usage: neos-build [rootfs|proot|iso|all|clean]" >&2; echo "  builds the NeoOS rootfs/proot/ISO via the build scripts." ;;
+  *) echo "usage: neos-build [rootfs|proot|iso|all|clean]" >&2; exit 2 ;;
+esac

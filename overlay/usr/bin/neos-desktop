@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# neos-desktop — NeoDesktop: launch NeoOS desktop session (xfce/wayland/gui)
+set -euo pipefail
+case "${1:-start}" in
+  start|run) exec neos-xfce ;;
+  wayland) exec neos-wayland ;;
+  gui) exec neos-gui ;;
+  *) echo "usage: neos-desktop [start|wayland|gui]" >&2; exit 2 ;;
+esac

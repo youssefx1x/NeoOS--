@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# neos-sdk — NeoSDK: developer SDK env & headers for NeoAPI
+set -euo pipefail
+echo "NeoSDK (NeoAPI ${NEOAPI_VERSION:-1.1.0})"
+for h in /usr/include/neo/neo.h /usr/include/neo/neo_ai.h /usr/include/neo/neo_fs.h /usr/include/neo/neo_net.h /usr/include/neo/neo_system.h; do
+  [[ -e "$h" ]] && echo "header: $h"
+done
+for l in /usr/lib/libneo.so /usr/lib/libneo.so.1; do [[ -e "$l" ]] && echo "lib: $l"; done
+case "${1:-}" in
+  env)
+    printf 'CFLAGS=%s\nLIBS=%s\n' \
+      "$(pkg-config --cflags neoapi 2>/dev/null || echo '')" \
+      "$(pkg-config --libs neoapi 2>/dev/null || echo '')" ;;
+  *) echo "usage: neos-sdk [env]" ;;
+esac

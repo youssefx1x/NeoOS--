@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# neos-config — NeoConfig: unified NeoOS configuration store
+set -euo pipefail
+CONF="/etc/neos/neos.conf"
+case "${1:-show}" in
+  show|list) [[ -r "$CONF" ]] && grep -vE '^[[:space:]]*#' "$CONF" 2>/dev/null || echo "no $CONF" ;;
+  get) key="${2:-}"; [[ -z "$key" ]] && { echo "usage: neos-config get <key>" >&2; exit 2; }
+    grep -E "^${key}=" "$CONF" 2>/dev/null | tail -n1 | cut -d= -f2- || echo "key '$key' not set" ;;
+  set) key="${2:-}"; val="${3:-}"
+    [[ -z "$key" ]] && { echo "usage: neos-config set <key> <value>" >&2; exit 2; }
+    echo "$key=$val" >> "$CONF" 2>/dev/null || { echo "neos-config set: needs root" >&2; exit 1; } ;;
+  *) echo "usage: neos-config [show|get <key>|set <key> <value>]" >&2; exit 2 ;;
+esac

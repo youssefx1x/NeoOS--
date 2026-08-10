@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# neos-mobile — NeoMobile: Termux/proot Android environment helpers
+set -euo pipefail
+case "${1:-status}" in
+  status)
+    if [[ -n "${PREFIX:-}" ]]; then echo "Termux prefix: $PREFIX"; else echo "not running under Termux"; fi
+    command -v termux-storage-get >/dev/null 2>&1 && echo "termux-api: available" || echo "termux-api: unavailable"
+    ;;
+  share) command -v termux-share >/dev/null 2>&1 && exec termux-share || echo "termux-share not available" >&2 ;;
+  *) echo "usage: neos-mobile [status|share]" >&2; exit 2 ;;
+esac

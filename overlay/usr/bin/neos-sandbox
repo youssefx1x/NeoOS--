@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-sandbox — NeoSandbox: run a command in isolation (bwrap/firejail)
+set -euo pipefail
+if [[ $# -eq 0 ]]; then echo "usage: neos-sandbox <cmd> [args]" >&2; exit 2; fi
+if command -v bwrap >/dev/null 2>&1; then
+  exec bwrap --ro-bind /usr /usr --symlink usr/bin/true /bin/true --proc /proc --dev /dev --tmpfs /tmp --unshare-all "$@"
+elif command -v firejail >/dev/null 2>&1; then
+  exec firejail "$@"
+else
+  echo "neos-sandbox: bwrap/firejail not installed" >&2
+  exit 1
+fi

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# neos-security — NeoSecurity: SUID/world-writable audit & package verification
+set -euo pipefail
+case "${1:-status}" in
+  status|audit)
+    echo "=== SUID/SGID binaries ==="
+    find / -xdev \( -perm -4000 -o -perm -2000 \) -type f 2>/dev/null | head -n 20
+    echo "=== world-writable files (excluding proc/sys/run) ==="
+    find / -xdev -perm -0002 -type f 2>/dev/null | grep -vE '^/(proc|sys|run)/' | head -n 20
+    ;;
+  verify)
+    if command -v debsums >/dev/null 2>&1; then debsums -s
+    elif command -v dpkg >/dev/null 2>&1; then dpkg -V 2>/dev/null | head -n 20
+    else echo "neos-security verify: no verification tool (install debsums)" >&2; exit 1; fi ;;
+  *) echo "usage: neos-security [status|audit|verify]" >&2; exit 2 ;;
+esac

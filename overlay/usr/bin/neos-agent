@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# neos-agent — NeoAgent system agent (controlled capabilities) status
+set -euo pipefail
+case "${1:-status}" in
+  status)
+    echo "NeoAgent: $(command -v neos-agent 2>/dev/null || echo 'not installed')"
+    ps -e -o comm= 2>/dev/null | grep -qx neos-agent && echo "state: running" || echo "state: stopped"
+    ;;
+  logs) journalctl -u neos-agent 2>/dev/null | tail -n 25 || echo "no agent journal" ;;
+  *) echo "usage: neos-agent [status|logs]" >&2; exit 2 ;;
+esac

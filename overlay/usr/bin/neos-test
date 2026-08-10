@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-test — NeoTest: run NeoOS component/system test suites
+set -euo pipefail
+TDIR="${NEOS_TEST_DIR:-/opt/neos-tests}"
+case "${1:-run}" in
+  run)
+    if [[ -x "$TDIR/run-neos-tests.sh" ]]; then "$TDIR/run-neos-tests.sh" "${@:2}"
+    elif [[ -d "$TDIR" ]]; then for t in "$TDIR"/*.sh; do echo ":: $t"; bash "$t"; done
+    else echo "no tests found in $TDIR (set NEOS_TEST_DIR)"; fi ;;
+  list|ls) [[ -d "$TDIR" ]] && ls "$TDIR" 2>/dev/null || echo "(no test suite in $TDIR)" ;;
+  *) echo "usage: neos-test [run|list]" >&2; exit 2 ;;
+esac

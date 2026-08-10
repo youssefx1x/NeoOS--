@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-pkg — NeoPkg 2.0 unified package manager (delegates to pkg)
+set -euo pipefail
+cmd="${1:-}"
+if [[ -z "$cmd" ]]; then
+  echo "usage: neos-pkg <install|remove|upgrade|search|show|list|files|depends|doctor|rollback|history|clean|self-update> [args]" >&2
+  exit 2
+fi
+shift
+if command -v pkg >/dev/null 2>&1; then exec pkg "$cmd" "$@"; fi
+echo "neos-pkg: pkg (NeoPkg 2.0) not installed" >&2
+exit 1

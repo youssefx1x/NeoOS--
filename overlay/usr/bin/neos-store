@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# neos-store — NeoStore app/package store browser (apt-backed)
+set -euo pipefail
+case "${1:-search}" in
+  search) term="${2:-}"; [[ -z "$term" ]] && { echo "usage: neos-store search <term>" >&2; exit 2; }
+    command -v apt-cache >/dev/null 2>&1 && apt-cache search "$term" | head -n 30 || echo "apt-cache unavailable" ;;
+  show) pkg="${2:-}"; [[ -z "$pkg" ]] && { echo "usage: neos-store show <pkg>" >&2; exit 2; }
+    command -v apt-cache >/dev/null 2>&1 && apt-cache show "$pkg" 2>/dev/null | head -n 25 || echo "package not found" ;;
+  list) dpkg -l 2>/dev/null | awk 'NR>5{print $2}' | head -n 30 ;;
+  *) echo "usage: neos-store [search <term>|show <pkg>|list]" >&2; exit 2 ;;
+esac

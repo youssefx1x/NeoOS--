@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# neos-dev — NeoDev: developer toolchains & project management
+set -euo pipefail
+case "${1:-status}" in
+  status) echo "NeoDev toolchains:"; for t in gcc g++ make python3 node npm go rustc cargo dotnet; do p="$(command -v "$t" 2>/dev/null)"; [[ -n "$p" ]] && printf '  %-8s %s\n' "$t" "$p"; done ;;
+  project) exec neos-new "${@:2}" ;;
+  *) echo "usage: neos-dev [status|project <args>]" >&2; exit 2 ;;
+esac

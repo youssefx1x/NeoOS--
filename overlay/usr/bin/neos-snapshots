@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# neos-snapshots — NeoSnapshots: list NeoPkg transaction snapshots
+set -euo pipefail
+SNAP="${NEOS_SNAPSHOTS_DIR:-/var/lib/neopkg/snapshots}"
+case "${1:-list}" in
+  list|ls) [[ -d "$SNAP" ]] && ls -1 "$SNAP" 2>/dev/null || echo "(no snapshots — created automatically by NeoPkg 2.0 transactions)" ;;
+  info) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-snapshots info <id>" >&2; exit 2; }; ls -ld "$SNAP/$id" 2>/dev/null || echo "snapshot '$id' not found" ;;
+  *) echo "usage: neos-snapshots [list|info <id>]" >&2; exit 2 ;;
+esac
