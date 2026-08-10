@@ -14,6 +14,12 @@ NEOS_SECURITY="${NEOS_SECURITY:-http://security.debian.org/debian-security}"
 NEOS_KEYRING="${NEOS_KEYRING:-/usr/share/keyrings/debian-archive-keyring.gpg}"
 NEOS_TARBALL="${NEOS_TARBALL:-$REPO_ROOT/build/neoos-rootfs.tar.xz}"
 NEOS_COMPONENTS="${NEOS_COMPONENTS:-main,contrib,non-free-firmware}"
+# Build variant: "full" (default) = core + XFCE GUI; "minimal" = core shell only
+# (fast local builds, no GUI). Lets end users install NeoOS from a localhost
+# workspace without pulling the large XFCE stack.
+NEOS_VARIANT="${NEOS_VARIANT:-full}"
+NEOS_INCLUDE_PKGS=("$REPO_ROOT/config/packages.base")
+[[ "$NEOS_VARIANT" == "minimal" ]] || NEOS_INCLUDE_PKGS+=("$REPO_ROOT/config/packages.xfce")
 
 # Map NeoOS arch aliases to Debian/Ubuntu arch names used by
 # mmdebstrap/debootstrap. (e.g. aarch64 -> arm64, x86_64 -> amd64.)
@@ -89,13 +95,21 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     if [[ -n "$NEOS_KEYRING" ]]; then
       keyring_args=(--keyring "$NEOS_KEYRING")
     fi
+    apt_opts=()
+    if [[ -z "$NEOS_KEYRING" ]]; then
+      log "WARNING: no Debian keyring found on host; disabling apt signature verification for this build"
+      apt_opts+=(--aptopt=-oAcquire::AllowInsecureRepositories=true)
+      apt_opts+=(--aptopt=-oAcquire::AllowDowngradeToInsecureRepositories=true)
+      apt_opts+=(--aptopt=-oAPT::Get::AllowUnauthenticated=true)
+    fi
     mmdebstrap \
       --variant=minbase \
       --arch="$_deb_arch" \
       --components="$NEOS_COMPONENTS" \
       "${keyring_args[@]}" \
+      "${apt_opts[@]}" \
       ${NEOS_QEMU:+--qemu "$NEOS_QEMU" --crossdeps} \
-       --include="$(cat "$REPO_ROOT/config/packages.base" "$REPO_ROOT/config/packages.xfce" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//')" \
+       --include="$(cat "${NEOS_INCLUDE_PKGS[@]}" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//')" \
       "$NEOS_SUITE" "$NEOS_ROOTFS"
   else
     # debootstrap fallback (Termux: mmdebstrap unavailable). The --foreign
@@ -110,7 +124,7 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     # debootstrap --include expects a comma-separated list; all packages.base
     # entries live in `main`, which debootstrap fetches by default, so
     # --components is intentionally omitted (older debootstrap lacks it).
-    deboot_inc="$(cat "$REPO_ROOT/config/packages.base" "$REPO_ROOT/config/packages.xfce" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ',' | sed 's/^[[:space:]]*,//; s/,$//; s/,,*/,/g')"
+    deboot_inc="$(cat "${NEOS_INCLUDE_PKGS[@]}" 2>/dev/null | grep -v '^[[:space:]]*#' | tr '\n' ',' | sed 's/^[[:space:]]*,//; s/,$//; s/,,*/,/g')"
     if [[ -n "$deboot_inc" ]]; then
       deboot_args+=(--include="$deboot_inc")
     fi
