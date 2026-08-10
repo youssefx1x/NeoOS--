@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300">
   <rect width="800" height="300" fill="#161a1d"/>
-  <text x="40" y="140" font-family="monospace" font-size="44" fill="#238636">NeoOS 1.1.0 Stable</text>
+  <text x="40" y="140" font-family="monospace" font-size="44" fill="#238636">NeoOS 1.1.1 Stable</text>
   <text x="40" y="200" font-family="monospace" font-size="22" fill="#e6edf3">Debian 13 (trixie) terminal distribution</text>
   <text x="40" y="238" font-family="monospace" font-size="18" fill="#8b949e">Code · Internet · Drivers · Wayland · Wine · Tools</text>
 </svg>

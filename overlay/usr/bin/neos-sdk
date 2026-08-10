@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # neos-sdk — NeoSDK: developer SDK env & headers for NeoAPI
 set -euo pipefail
-echo "NeoSDK (NeoAPI ${NEOAPI_VERSION:-1.1.0})"
+echo "NeoSDK (NeoAPI ${NEOAPI_VERSION:-1.1.1})"
 for h in /usr/include/neo/neo.h /usr/include/neo/neo_ai.h /usr/include/neo/neo_fs.h /usr/include/neo/neo_net.h /usr/include/neo/neo_system.h; do
   [[ -e "$h" ]] && echo "header: $h"
 done

@@ -1,6 +1,6 @@
 # NeoOS
 
-A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.0 Stable**, the fully apt-updated, stable release.
+A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.1 Stable**, the fully apt-updated, stable release.
 
 NeoOS is a minimal, terminal-only operating system focused on development,
 networking and tinkering. It ships a **terminal start menu** (code
@@ -10,7 +10,7 @@ for installing and switching between multiple versions of the same shared
 library.
 
 ```
-      NeoOS 1.1.0 Stable — Debian 13 (trixie) terminal distribution
+      NeoOS 1.1.1 Stable — Debian 13 (trixie) terminal distribution
       ┌─────────────────────────────────────────────────┐
       │  Code        updated code apps + toolchains     │
       │  Internet    browsers, messaging, network utils │
@@ -103,9 +103,9 @@ library.
   Whisker start menu, libinput tap-to-click + natural-scroll tuning
    (`overlay/etc/X11/xorg.conf.d/40-libinput-touch.conf`), and lightdm auto-login.
 
-## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Stable — NeoOS 1.1.0)
+## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Stable — NeoOS 1.1.1)
 
-NeoOS 1.1.0 ships three new, stable pieces that sit cleanly on top of the
+NeoOS 1.1.1 ships three new, stable pieces that sit cleanly on top of the
 existing `neos-*` tools and `pkg`:
 
 - **NeoCore** — a thin, dependency-free system layer at
@@ -126,7 +126,7 @@ existing `neos-*` tools and `pkg`:
   neo doctor                 # -> pkg doctor          (dependency audit)
   neo rollback 2             # -> pkg rollback 2      (snapshots)
   neo history                # -> pkg history         (txn log)
-  neo version                # NeoCore 1.1.0 / NeoAPI 1.1.0
+  neo version                # NeoCore 1.1.1 / NeoAPI 1.1.1
   ```
 - **NeoPkg 2.0 (in `pkg`)** — `pkg` is extended (not rewritten) with
   dependency resolution, automatic rollback via per-transaction snapshots
@@ -135,13 +135,13 @@ existing `neos-*` tools and `pkg`:
   offline cache. New subcommands: `pkg doctor`, `pkg rollback [id]`,
   `pkg history`, and multi-source `pkg search`/`pkg show`.
 - **NeoLIBs native core (NeoAPI 1.1)** — `neolibs/libneo-core` ships a C ABI
-  core (`libneo.so`, NeoAPI v1.1.0 stable) backing `core`, `system`, `fs`,
+  core (`libneo.so`, NeoAPI v1.1.1 stable) backing `core`, `system`, `fs`,
   `net`, `process` and `package` modules, with multi-language bindings
   (C/C++/Rust/Python/JS/TS via ctypes/node-ffi-napi). It is built and
   installed into the rootfs by `scripts/apply-overlay.sh` as
-  `/usr/lib/libneo.so{,.1,.1.1.0}` + headers in `/usr/include/neo/`.
+  `/usr/lib/libneo.so{,.1,.1.1.1}` + headers in `/usr/include/neo/`.
   ```
-  pkg-config --modversion neoapi     # 1.1.0
+  pkg-config --modversion neoapi     # 1.1.1
   ```
 
 These three are wired into the live ISO at build time (see
@@ -150,7 +150,7 @@ These three are wired into the live ISO at build time (see
 
 ## NeoOS architecture (NeoX components)
 
-NeoOS 1.1.0 is built from **40 versioned NeoX system components**. Each ships a
+NeoOS 1.1.1 is built from **40 versioned NeoX system components**. Each ships a
 `neos-<name>` entry-point tool that you can run directly or through the `neo`
 dispatcher (e.g. `neo core`, `neo sdk`, `neo model`). Run `neos-help` for the
 full list and `neos-help <tool>` for usage.
@@ -528,7 +528,7 @@ The script picks `neoos-proot-aarch64.tar.xz` on arm64 or
 `neoos-proot-amd64.tar.xz` on x86_64, fetches it from the
 [NeoOS GitHub Release](https://github.com/youssefx1x/NeoOS--/releases),
 installs it as `neoos`, and logs you in. Override the release with
-`NEOS_RELEASE=1.1.0`, the container name with `NEOS_NAME=neoos`, or install
+`NEOS_RELEASE=1.1.1`, the container name with `NEOS_NAME=neoos`, or install
 from a local/HTTP tarball with `NEOS_INSTALL_TARBALL=<path-or-url>`:
 
 ```sh
@@ -548,7 +548,7 @@ proot-distro directly at the release URL for your architecture:
 pkg install proot-distro
 
 # Install NeoOS straight from the release URL (proot-distro fetches the .tar.xz)
-proot-distro install https://github.com/youssefx1x/NeoOS--/releases/download/1.1.0/neoos-proot-aarch64.tar.xz --name neoos   # arm64 phone
+proot-distro install https://github.com/youssefx1x/NeoOS--/releases/download/1.1.1/neoos-proot-aarch64.tar.xz --name neoos   # arm64 phone
 
 # Log in
 proot-distro login neoos

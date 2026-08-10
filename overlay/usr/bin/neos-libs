@@ -4,8 +4,8 @@ set -euo pipefail
 LIB="/usr/lib/libneo.so"
 case "${1:-status}" in
   status)
-    echo "NeoLIBs native core (NeoAPI ${NEOAPI_VERSION:-1.1.0}):"
-    for f in "$LIB" "$LIB.1" "$LIB.1.1.0"; do
+    echo "NeoLIBs native core (NeoAPI ${NEOAPI_VERSION:-1.1.1}):"
+    for f in "$LIB" "$LIB.1" "$LIB.1.1.1"; do
       [[ -e "$f" ]] && printf '  %s (%s bytes)\n' "$f" "$(stat -c%s "$f" 2>/dev/null || echo '?')"
     done
     [[ -e /usr/include/neo/neo.h ]] && echo "  header: /usr/include/neo/neo.h"

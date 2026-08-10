@@ -1,13 +1,13 @@
 name: Release NeoOS proot rootfs
 
 # Builds NeoOS proot-distro tarballs for AMD64 and ARM64 and attaches them
-# to a GitHub Release. Triggered by pushing a versioned tag (e.g. `1.1.0`
-# or `1.1.0-aarch64`), or manually from the Actions tab.
+# to a GitHub Release. Triggered by pushing a versioned tag (e.g. `1.1.1`
+# or `1.1.1-aarch64`), or manually from the Actions tab.
 
 on:
   push:
     tags:
-      - '[0-9]*'            # version tags (1.1.0, 1.2.0, ...)
+      - '[0-9]*'            # version tags (1.1.1, 1.2.0, ...)
       - '*-aarch64'
       - '*-amd64'
       - '*-arm64'
