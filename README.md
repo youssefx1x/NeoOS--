@@ -148,6 +148,56 @@ These three are wired into the live ISO at build time (see
 `scripts/apply-overlay.sh`) and listed by the unified command reference
 (`neos-help`).
 
+## NeoOS architecture (NeoX components)
+
+NeoOS 1.1.0 is built from **40 versioned NeoX system components**. Each ships a
+`neos-<name>` entry-point tool that you can run directly or through the `neo`
+dispatcher (e.g. `neo core`, `neo sdk`, `neo model`). Run `neos-help` for the
+full list and `neos-help <tool>` for usage.
+
+| # | Component | Tool | Purpose |
+|---|-----------|------|---------|
+| 1 | NeoCore | `neos-core` | Core OS services & unified system API |
+| 2 | NeoLIBs | `neos-libs` | Native libraries and developer APIs |
+| 3 | NeoPkg | `neos-pkg` / `pkg` | Unified package manager |
+| 4 | NeoSecurity | `neos-security` | Permissions, verification & system security |
+| 5 | NeoAI | `neos-ai` | Native AI assistant |
+| 6 | NeoAgent | `neos-agent` | AI system-agent with controlled capabilities |
+| 7 | NeoApps | `neos-apps` | Native application framework |
+| 8 | NeoStore | `neos-store` | App/package store |
+| 9 | NeoShell | `neos-shell` | Modern command shell & launcher |
+| 10 | NeoDesktop | `neos-desktop` | NeoOS desktop environment |
+| 11 | NeoWM | `neos-wm` | Wayland window management |
+| 12 | NeoMobile | `neos-mobile` | Android/Proot mobile environment |
+| 13 | NeoHardware | `neos-hw` | Hardware detection & abstraction |
+| 14 | NeoDoctor | `neos-doctor` | Automatic system diagnostics & repair |
+| 15 | NeoRecovery | `neos-recovery` | System recovery & rollback |
+| 16 | NeoUpdate | `neos-update` | Safe atomic system updates |
+| 17 | NeoSnapshots | `neos-snapshots` | System snapshots & restore |
+| 18 | NeoSandbox | `neos-sandbox` | Application/process isolation |
+| 19 | NeoWin | `neos-wine` | Windows/Wine application integration |
+| 20 | NeoVM | `neos-vm` | Virtual machine management |
+| 21 | NeoContainer | `neos-distro` | Container management |
+| 22 | NeoDev | `neos-dev` | Developer toolkit & project management |
+| 23 | NeoCode | `neos-code` | Integrated development environment |
+| 24 | NeoFiles | `neos-files` | Modern file manager |
+| 25 | NeoSearch | `neos-search` | System-wide search |
+| 26 | NeoNotify | `neos-notify` | Unified notification system |
+| 27 | NeoMonitor | `neos-monitor` | System/resource monitoring |
+| 28 | NeoLogs | `neos-logs` | Centralized system logs |
+| 29 | NeoConfig | `neos-config` | Unified configuration management |
+| 30 | NeoNetwork | `neos-net` | Network management & diagnostics |
+| 31 | NeoPower | `neos-power` | Power/battery management |
+| 32 | NeoPerformance | `neos-perf` | Performance profiles & optimization |
+| 33 | NeoTheme | `neos-theme` | Unified themes, icons & appearance |
+| 34 | NeoAccessibility | `neos-access` | Accessibility framework |
+| 35 | NeoLocalization | `neos-locale` | Language & RTL support |
+| 36 | NeoTest | `neos-test` | Automated system/component testing |
+| 37 | NeoBuild | `neos-build` | ISO/rootfs/package build system |
+| 38 | NeoSDK | `neos-sdk` | Developer SDK for NeoOS apps |
+| 39 | NeoRepo | `neos-repo` | Official package repository infrastructure |
+| 40 | NeoModel | `neos-model` | Local AI model management |
+
 ## Quick start
 
 ```sh
