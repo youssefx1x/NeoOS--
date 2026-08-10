@@ -99,6 +99,7 @@ EOF
   one neos-archive    "Tar wrapper (create/list/extract)"
   one neos-cipher     "AES-256 file encrypt/decrypt (openssl)"
   one neos-theme      "Toggle Arc light/dark + Papirus theme"
+  one neos-tools      "Menu listing every NeoOS tool"
 
   heading "NeoLIBs"
   one neolibs  "Multi-version shared-library manager + native NeoAPI (libneo.so C ABI)"
@@ -174,7 +175,7 @@ summary_table() {
     neos-shell neos-desktop neos-wm neos-mobile neos-hw neos-doctor neos-recovery \
     neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search \
     neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale \
-    neos-test neos-build neos-sdk neos-repo neos-model \
+    neos-test neos-build neos-sdk neos-repo neos-model neos-tools \
     neolibs; do
     if [[ -f "$(dirname "$0")/$cmd" ]] || command -v "$cmd" >/dev/null 2>&1; then
       summary=$(grep -m1 '^# [a-z].* —' "$(dirname "$0")/$cmd" 2>/dev/null | sed 's/^# //; s/ — /: /')
@@ -196,7 +197,7 @@ list_only() {
      'neos-shell neos-desktop neos-wm neos-mobile neos-hw neos-doctor neos-recovery' \
      'neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search' \
      'neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale' \
-     'neos-test neos-build neos-sdk neos-repo neos-model'
+     'neos-test neos-build neos-sdk neos-repo neos-model neos-tools'
 }
 
 case "${1:-}" in

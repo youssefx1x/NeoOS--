@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# neos-tools — menu listing every NeoOS tool (neos-*, neo, pkg, neolibs)
+set -euo pipefail
+
+collect_tools() {
+  local f d
+  # script's own directory (covers repo / test runs)
+  for f in "$(dirname "$0")"/neos-*; do [[ -x "$f" ]] && printf '%s\n' "$(basename "$f")"; done
+  # PATH
+  for d in $(IFS=:; echo "$PATH"); do
+    [[ -d "$d" ]] || continue
+    for f in "$d"/neos-*; do [[ -x "$f" ]] && printf '%s\n' "$(basename "$f")"; done
+  done
+  for f in neo pkg neolibs; do command -v "$f" >/dev/null 2>&1 && printf '%s\n' "$f"; done
+}
+mapfile -t TOOLS < <(collect_tools | sort -u)
+
+summary_of() {
+  local t="$1" f
+  for f in "/usr/bin/$t" "$(dirname "$0")/$t"; do
+    if [[ -r "$f" ]]; then
+      local s; s=$(grep -m1 '^# [a-z].* — ' "$f" 2>/dev/null | sed 's/^# //; s/ — /: /')
+      printf '%s' "${s:-(no summary)}"
+      return
+    fi
+  done
+  printf '(no summary)'
+}
+
+print_list() {
+  printf 'NeoOS tools (%d):\n' "${#TOOLS[@]}"
+  printf '%-16s %s\n' "TOOL" "SUMMARY"
+  printf '%.0s-' {1..60}; printf '\n'
+  local t
+  for t in "${TOOLS[@]}"; do printf '%-16s %s\n' "$t" "$(summary_of "$t")"; done
+}
+
+run_tool() {
+  local t="$1"; shift
+  local p
+  for p in "$(dirname "$0")/$t" "/usr/bin/$t"; do
+    [[ -x "$p" ]] && exec "$p" "$@"
+  done
+  if command -v "$t" >/dev/null 2>&1; then exec "$t" "$@"
+  else echo "neos-tools: '$t' not found" >&2; exit 127
+  fi
+}
+
+menu_tool() {
+  if ! command -v whiptail >/dev/null 2>&1 || [[ ! -t 1 ]]; then
+    echo "usage: neos-tools menu  (needs whiptail + a tty; otherwise use: neos-tools list)" >&2
+    exit 1
+  fi
+  local items=() t
+  for t in "${TOOLS[@]}"; do items+=("$t" "$(summary_of "$t")"); done
+  local tag
+  while :; do
+    { tag=$(whiptail --title "NeoOS tools" --menu "Select a tool (Esc cancels)" 22 80 20 "${items[@]}" 3>&1 1>&2) || { echo "(cancelled)"; break; }; }
+    run_tool "$tag"
+  done
+}
+
+case "${1:-list}" in
+  list|ls) print_list ;;
+  run) [[ $# -ge 2 ]] || { echo "usage: neos-tools run <name> [args]" >&2; exit 2; }; shift; run_tool "$1" "${@:2}" ;;
+  menu) menu_tool ;;
+  *) echo "usage: neos-tools [list|run <name> [args]|menu]" >&2; exit 2 ;;
+esac

@@ -474,12 +474,18 @@ neos-serve --upload   # ... with file upload support
 neos-backup           # back up configs + package list to a tarball
 neos-backup --list f  # inspect a backup
 neos-backup --restore f  # restore package list + configs
+neos-tools              # list/run every NeoOS tool
 ```
 
 `neos-serve` prints a LAN URL to share files; `--upload` adds
 `curl -F file=@x.tar.gz http://<host>:<port>/` transfer. `neos-backup`
 saves apt/package state, `/etc` configs and NeoLIBs/Wine VM listings, and
 can restore the installed package list on a fresh install.
+
+`neos-tools` is a meta-menu: `neos-tools list` shows every installed NeoOS
+tool with a one-line summary, `neos-tools run <name> [args]` runs one, and
+`neos-tools menu` opens an interactive picker (whiptail). It auto-discovers
+tools, so it always reflects what's installed.
 
 ## Termux / proot-distro
 
