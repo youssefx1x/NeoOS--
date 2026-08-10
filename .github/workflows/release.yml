@@ -35,7 +35,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y mmdebstrap debootstrap xz-utils
       - name: Build proot tarball (amd64)
         run: |
-          NEOS_ARCH=amd64 bash ./build.sh proot
+          sudo env NEOS_ARCH=amd64 bash ./build.sh proot
           ls -lh build/neoos-proot-amd64.tar.xz
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -54,7 +54,8 @@ jobs:
         run: |
           # build-proot.sh defaults NEOS_ARCH=aarch64; build-rootfs.sh
           # maps aarch64 -> arm64 for debootstrap/mmdebstrap.
-          bash ./build.sh proot
+          # Run as root: mmdebstrap's rootfs creation/chmod needs root.
+          sudo bash ./build.sh proot
           ls -lh build/neoos-proot-aarch64.tar.xz
       - name: Upload artifact
         uses: actions/upload-artifact@v4
