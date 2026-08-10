@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# neos-plugin-security — NeoPlugin Security: plugin permissions & access control
+set -euo pipefail
+PDIR="${NEOS_PLUGINS_DIR:-/opt/neos-plugins}"
+echo "Plugin policies ($PDIR):"
+if [[ -d "$PDIR" ]]; then
+  for f in "$PDIR"/*.policy; do
+    [[ -r "$f" ]] && { echo ":: $(basename "$f")"; cat "$f"; }
+  done 2>/dev/null || true
+fi
+case "${1:-}" in
+  list|ls) echo "(see policies above)" ;;
+  grant) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-plugin-security grant <plugin>" >&2; exit 2; }
+    echo "grant: edit $PDIR/$id.policy as root to add capabilities" ;;
+  *) echo "usage: neos-plugin-security [list|grant <plugin>]" >&2; exit 0 ;;
+esac

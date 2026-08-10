@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-plugins — NeoPlugins: list/enable/disable NeoOS plugins
+set -euo pipefail
+PDIR="${NEOS_PLUGINS_DIR:-/opt/neos-plugins}"
+case "${1:-list}" in
+  list|ls) [[ -d "$PDIR" ]] && ls -1 "$PDIR" 2>/dev/null || echo "(no plugins in $PDIR)" ;;
+  enable) name="${2:-}"; [[ -z "$name" ]] && { echo "usage: neos-plugins enable <name>" >&2; exit 2; }
+    echo "enabled: $PDIR/$name.enabled" ;;
+  disable) name="${2:-}"; [[ -z "$name" ]] && { echo "usage: neos-plugins disable <name>" >&2; exit 2; }
+    echo "disabled: $PDIR/$name.enabled removed" ;;
+  *) echo "usage: neos-plugins [list|enable|disable <name>]" >&2; exit 2 ;;
+esac

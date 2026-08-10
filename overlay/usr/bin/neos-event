@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# neos-event — NeoEvent: system-wide event bus (log/emit/replay)
+set -euo pipefail
+LOG="${NEOS_EVENT_LOG:-/var/log/neos/events.log}"
+case "${1:-log}" in
+  log) tail -n "${2:-20}" "$LOG" 2>/dev/null || echo "no events recorded (NEOS_EVENT_LOG=$LOG)" ;;
+  emit)
+    ev="${2:-}"
+    [[ -z "$ev" ]] && { echo "usage: neos-event emit <name> [payload]" >&2; exit 2; }
+    mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+    printf '%s\t%s\t%s\n' "$(date '+%F%T')" "$ev" "${3:-}" >> "$LOG" 2>/dev/null || echo "neos-event: cannot write $LOG (needs root)" >&2
+    ;;
+  *) echo "usage: neos-event [log [n]|emit <name> [payload]]" >&2; exit 2 ;;
+esac

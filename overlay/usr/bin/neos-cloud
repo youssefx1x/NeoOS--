@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# neos-cloud — NeoCloud: sync files, settings & backups (Google Drive, WebDAV)
+set -euo pipefail
+case "${1:-status}" in
+  status)
+    echo "NeoCloud:"
+    command -v rclone >/dev/null 2>&1 && { rclone version | head -n1; rclone listremotes 2>/dev/null; } || echo "  rclone not installed (apt install rclone)"
+    ;;
+  sync) echo "neos-cloud sync: configure remotes first with 'rclone config', then: rclone sync <remote> <path>" ;;
+  backup) echo "neos-cloud backup: run 'neos-backup' then 'neos-cloud sync <remote>'" ;;
+  *) echo "usage: neos-cloud [status|sync [remote]|backup]" >&2; exit 2 ;;
+esac

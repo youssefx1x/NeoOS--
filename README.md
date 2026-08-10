@@ -197,6 +197,27 @@ full list and `neos-help <tool>` for usage.
 | 38 | NeoSDK | `neos-sdk` | Developer SDK for NeoOS apps |
 | 39 | NeoRepo | `neos-repo` | Official package repository infrastructure |
 | 40 | NeoModel | `neos-model` | Local AI model management |
+| 41 | NeoCloud | `neos-cloud` | Sync files, settings, and backups (Google Drive / WebDAV) |
+| 42 | NeoTheme | `neos-theme` | Manage themes, icons, and fonts |
+| 43 | NeoNetwork | `neos-net` | Network management & diagnostics |
+| 44 | NeoSandbox | `neos-sandbox` | Isolate apps and risky processes |
+| 45 | NeoWin | `neos-wine` | Run Windows apps through Wine |
+| 46 | NeoVM | `neos-vm` | Create and manage virtual machines |
+| 47 | NeoContainer | `neos-distro` | Manage containers (proot/distro) |
+| 48 | NeoDev | `neos-dev` | Developer tools & project management |
+| 49 | NeoCode | `neos-code` | Integrated code editor / IDE |
+| 50 | NeoFiles | `neos-files` | Advanced file manager |
+| 51 | NeoSearch | `neos-search` | Search files, apps, settings, and more |
+| 52 | NeoNotify | `neos-notify` | Unified notification system |
+| 53 | NeoMonitor | `neos-monitor` | Monitor system resources & hardware |
+| 54 | NeoLogs | `neos-logs` | Centralized system log management |
+| 55 | NeoConfig | `neos-config` | Centralized system/app configuration |
+| 56 | NeoIPC | `neos-ipc` | Communication between NeoOS components |
+| 57 | NeoEvent | `neos-event` | System-wide event bus |
+| 58 | NeoPlugins | `neos-plugins` | Extend NeoOS with plugins |
+| 59 | NeoPlugin Security | `neos-plugin-security` | Control plugin permissions & access |
+
+> Rows 42–55 are the user-facing faces of components 1–40 (e.g. `NeoTheme`↔`neos-theme`), sharing one tool each; rows 41 and 56–59 are new tools.
 
 ## Quick start
 

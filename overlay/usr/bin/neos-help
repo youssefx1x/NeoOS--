@@ -138,6 +138,11 @@ EOF
   one neos-sdk      "NeoSDK: NeoAPI SDK env & headers"
   one neos-repo     "NeoRepo: package repository sources"
   one neos-model    "NeoModel: local AI model management"
+  one neos-cloud    "NeoCloud: sync files, settings & backups"
+  one neos-ipc      "NeoIPC: inter-component communication endpoints"
+  one neos-event    "NeoEvent: system-wide event bus"
+  one neos-plugins  "NeoPlugins: plugin management"
+  one neos-plugin-security "NeoPlugin Security: plugin permissions & access"
 
   printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\033[0m\n'
 }
@@ -176,6 +181,7 @@ summary_table() {
     neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search \
     neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale \
     neos-test neos-build neos-sdk neos-repo neos-model neos-tools \
+    neos-cloud neos-ipc neos-event neos-plugins neos-plugin-security \
     neolibs; do
     if [[ -f "$(dirname "$0")/$cmd" ]] || command -v "$cmd" >/dev/null 2>&1; then
       summary=$(grep -m1 '^# [a-z].* —' "$(dirname "$0")/$cmd" 2>/dev/null | sed 's/^# //; s/ — /: /')
@@ -197,7 +203,8 @@ list_only() {
      'neos-shell neos-desktop neos-wm neos-mobile neos-hw neos-doctor neos-recovery' \
      'neos-snapshots neos-sandbox neos-vm neos-dev neos-code neos-files neos-search' \
      'neos-notify neos-logs neos-config neos-power neos-perf neos-access neos-locale' \
-     'neos-test neos-build neos-sdk neos-repo neos-model neos-tools'
+     'neos-test neos-build neos-sdk neos-repo neos-model neos-tools' \
+     'neos-cloud neos-ipc neos-event neos-plugins neos-plugin-security'
 }
 
 case "${1:-}" in
