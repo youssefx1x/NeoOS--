@@ -30,6 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install current Debian archive keyring (trixie signing keys)
+        run: |
+          set -e
+          deb=$(curl -fsSL https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/ | grep -oE 'debian-archive-keyring_[0-9][^"]*_all.deb' | sort -V | tail -1)
+          curl -fsSL "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/$deb" -o /tmp/debian-archive-keyring.deb
+          sudo apt-get install -y /tmp/debian-archive-keyring.deb
       - uses: actions/setup-python@v5
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y mmdebstrap debootstrap xz-utils
@@ -48,6 +54,12 @@ jobs:
     runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
+      - name: Install current Debian archive keyring (trixie signing keys)
+        run: |
+          set -e
+          deb=$(curl -fsSL https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/ | grep -oE 'debian-archive-keyring_[0-9][^"]*_all.deb' | sort -V | tail -1)
+          curl -fsSL "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/$deb" -o /tmp/debian-archive-keyring.deb
+          sudo apt-get install -y /tmp/debian-archive-keyring.deb
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y mmdebstrap debootstrap xz-utils
       - name: Build proot tarball (aarch64 -> arm64)
