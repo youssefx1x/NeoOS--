@@ -7,9 +7,9 @@ NeoOS is a terminal-first Linux distribution assembled from **Debian 13
 no custom kernel or fork of the archive; NeoOS layers a curated terminal
 experience on top of the standard Debian archive.
 
-**NeoOS 1.1.1 Stable** is the fully apt-updated, stable release: the rootfs is
+**NeoOS 1.2.0 Stable** is the fully apt-updated, stable release: the rootfs is
 brought to current trixie/trixie-updates/trixie-security, broken dpkg state
-is repaired, and the version is bumped to 1.1.1 throughout
+is repaired, and the version is bumped to 1.2.0 throughout
 (`os-release`, Calamares branding, motd, ISO boot menu).
 
 ```
@@ -210,7 +210,7 @@ Multi-version shared-library manager. Storage layout:
 - Sources: local `.so`/dir (`--from`), URL (`--from-url`), apt package
   (`--from-deb`).
 
-### NeoCore, NeoPkg 2.0 & the `neo` CLI — Stable (NeoOS 1.1.1)
+### NeoCore, NeoPkg 2.0 & the `neo` CLI — Stable (NeoOS 1.2.0)
 
 - **NeoCore** (`overlay/usr/lib/neos/libneocore.sh`) — the NeoOS system
   layer: system status/info, service state, diagnostics, repair, hardware
@@ -226,7 +226,7 @@ Multi-version shared-library manager. Storage layout:
     self-update matrix),
   - `neo ai|health|update|menu|...` → pass-through to the matching
     `neos-*` tool
-  - `neo version` → `NeoCore 1.1.1 / NeoAPI 1.1.1`.
+  - `neo version` → `NeoCore 1.2.0 / NeoAPI 1.2.0`.
 - **NeoPkg 2.0** — `pkg` is extended, not rewritten. Adds dependency
   resolution, per-transaction snapshots + automatic rollback
   (`/var/lib/neopkg/snapshots`), package verification, repository
@@ -234,7 +234,7 @@ Multi-version shared-library manager. Storage layout:
   offline cache. New: `pkg doctor`, `pkg rollback [id]`, `pkg history`,
   multi-source `pkg search`/`pkg show`.
 - **NeoAPI 1.1** — the C ABI core in `neolibs/libneo-core`. Builds to
-  `/usr/lib/libneo.so{,.1,.1.1.1}` + `/usr/include/neo/*.h`; installed by
+  `/usr/lib/libneo.so{,.1,.1.2.0}` + `/usr/include/neo/*.h`; installed by
   `scripts/apply-overlay.sh`. Bindings: C/C++/Rust/Python/JS/TS. Modules:
   `core`, `system`, `fs`, `net`, `process`, `package` (the remaining
   modules — `gui`, `ai`, `security`, `hardware` — are reserved stubs

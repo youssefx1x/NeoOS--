@@ -131,6 +131,28 @@ HOME="$GUITMP" "$ng" select openbox >/dev/null 2>&1 || true
 grep -q 'exec openbox' "$GUITMP/.xsession" 2>/dev/null && ok "neos-gui select writes xsession" || bad "neos-gui select writes xsession"
 rm -rf "$GUITMP"
 
+# ---- neos-alive: liveliness pulse prints vitality + vitals ----
+ALIVE_OUT="$(PATH="$PWD/overlay/usr/bin:$PATH" "$NEOS" alive 2>&1 || true)"
+grep -q 'alive' <<< "$ALIVE_OUT"            && ok "neo alive prints an alive banner"  || bad "neo alive banner"
+grep -q 'vitality' <<< "$ALIVE_OUT"         && ok "neo alive prints vitality score"    || bad "neo alive vitality"
+grep -Eq 'load:|mem:|disk:' <<< "$ALIVE_OUT" && ok "neo alive prints live vitals"     || bad "neo alive vitals"
+
+# ---- neos-alive --min is a one-line summary ----
+MIN_OUT="$(PATH="$PWD/overlay/usr/bin:$PATH" ./overlay/usr/bin/neos-alive --min 2>&1 || true)"
+grep -q 'alive' <<< "$MIN_OUT" && ok "neos-alive --min is a one-line pulse" || bad "neos-alive --min"
+
+# ---- neos-welcome: landing banner greets + shows NeoOS identity ----
+WEL_OUT="$(PATH="$PWD/overlay/usr/bin:$PATH" ./overlay/usr/bin/neos-welcome 2>&1 || true)"
+grep -q 'Welcome' <<< "$WEL_OUT"  && ok "neos-welcome greets the user"       || bad "neos-welcome greets"
+grep -qi 'NeoOS' <<< "$WEL_OUT"   && ok "neos-welcome shows NeoOS identity"  || bad "neos-welcome identity"
+
+# ---- neo welcome / neo tip route through the umbrella without error ----
+PATH="$PWD/overlay/usr/bin:$PATH" "$NEOS" welcome >/dev/null 2>&1 && ok "neo welcome runs" || bad "neo welcome runs"
+PATH="$PWD/overlay/usr/bin:$PATH" "$NEOS" tip >/dev/null 2>&1     && ok "neo tip runs"     || bad "neo tip runs"
+
+# ---- profile.d welcome hook is syntactically valid ----
+bash -n ./overlay/etc/profile.d/neos-welcome.sh 2>/dev/null && ok "profile.d neos-welcome.sh is valid" || bad "profile.d neos-welcome.sh is valid"
+
 echo
 printf 'neos suite: %d passed, %d failed\n' "$pass" "$fail"
 (( fail == 0 )) || exit 1

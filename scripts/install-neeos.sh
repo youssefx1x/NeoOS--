@@ -3,13 +3,13 @@
 # via proot-distro.
 #
 # Downloads the NeoOS proot rootfs tarball for the current architecture from
-# the GitHub Release (default tag 1.1.1) and installs it, then drops you in.
+# the GitHub Release (default tag 1.2.0) and installs it, then drops you in.
 #
 #   curl -fsSL https://raw.githubusercontent.com/youssefx1x/NeoOS--/main/scripts/install-neeos.sh | bash
 #
 # Environment overrides:
 #   NEOS_REPO        GitHub repo (default youssefx1x/NeoOS--)
-#   NEOS_RELEASE     exact tag to fetch (default: 1.1.1)
+#   NEOS_RELEASE     exact tag to fetch (default: 1.2.0)
 #   NEOS_INSTALL_TARBALL  local tarball path to use instead of downloading
 #   NEOS_NAME        container name (default neoos)
 #   NEOS_NOLOGIN     1 = install only, do not start login shell
@@ -41,7 +41,7 @@ if [[ -n "$TARBALL" && ! -f "$TARBALL" ]]; then
 fi
 
 if [[ -z "$TARBALL" && -z "${NEOS_INSTALL_TARBALL:-}" ]]; then
-  NEOS_RELEASE="${NEOS_RELEASE:-1.1.1}"
+  NEOS_RELEASE="${NEOS_RELEASE:-1.2.0}"
   url="https://github.com/$NEOS_REPO/releases/download/$NEOS_RELEASE/$asset"
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT

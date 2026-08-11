@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-BANNER='NeoOS 1.1.1 Stable — terminal-first Debian 13 distribution'
+BANNER='NeoOS 1.2.0 Stable — terminal-first Debian 13 distribution'
 
 one() {
   local cmd="$1" line="$2"
@@ -48,6 +48,10 @@ EOF
   one neos-clean   "Free space by cleaning caches, logs, temp (dry-run first)"
   one neos-battery "Battery / power status"
 
+  heading "Life & welcome"
+  one neos-alive    "NeoOS liveliness pulse + vitality score (uptime, load, mem, disk...)"
+  one neos-welcome  "Interactive landing banner (logo + vitals + tip of the day)"
+
   heading "Network"
   one neos-net   "Network diagnostics (interfaces, gateway, DNS, ping)"
   one neos-ip    "Local + public IP addresses"
@@ -63,14 +67,13 @@ EOF
   heading "Dev"
   one neos-new   "Scaffold new projects (bash, python, c, web, shlib)"
   one neos-lang  "Install / list language toolchains"
-  one neos-launch "Enter or create a Project Capsule workspace (neos launch)"
+  one neos-dev   "NeoDev: toolchains, project capsules, SDK env"
 
   heading "Recovery & maintenance"
-   one neos-doctor "NeoDoctor: automatic diagnostics & self-repair"
-   one neos-doctor-ai "Doctor with AI diagnosis: neos-doctor --ai (uses neos-ai)"
-  one neos-clean "Free disk by cleaning caches/logs/temp (neos clean)"
-  one neos-fix   "Automatic repair: dpkg/apt --fix-broken + autoremove (neos fix)"
-  one neos-ai    "On-device AI assistant (Qwen 2.5 0.5B local or HTTP backend)"
+  one neos-doctor "NeoDoctor: auto diagnostics & self-repair (neos-doctor --fix)"
+  one neos-clean  "Free disk by cleaning caches/logs/temp (neos clean, dry-run first)"
+  one neos      "Umbrella entry: 'neos doctor|clean|fix|launch|suggest ...'"
+  one neos-ai  "On-device AI assistant (Qwen 2.5 0.5B local or HTTP backend)"
 
   heading "Users"
   one neos-users  "User manager: add (normal/Admin), delete, passwd, autologin"
@@ -144,19 +147,28 @@ EOF
   one neos-plugins  "NeoPlugins: plugin management"
   one neos-plugin-security "NeoPlugin Security: plugin permissions & access"
 
-  printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\033[0m\n'
+  printf '\n\033[2mRun "neos-help <command>" for full usage of one tool.\n'
+  printf 'Or "neos-help version" for versions, "neos-help quickstart" for tips,\n'
+  printf '"neos-help --search <term>" to find a tool, or "neos-help --list" for all names.\033[0m\n'
 }
 
 full_usage() {
   local cmd="$1" f
-  for f in "$(dirname "$0")/$cmd" "$cmd"; do
-    if [[ -f "$f" ]]; then
+  for f in "$(dirname "$0")/$cmd" "/usr/bin/$cmd" "$cmd"; do
+    if [[ -f "$f" && -r "$f" ]]; then
       echo "=== $cmd ==="
-      awk 'NR>1 && /^#/ { sub(/^# ?/,""); if (length) print "  " $0; next } /^#/ { next } /^[^#]/ { exit }' "$f" | head -30
+      awk 'NR>1 && /^#/ { sub(/^# ?/,""); if (length) print "  " $0; next } /^#/ { next } /^[^#]/ { exit }' "$f" | head -50
       return 0
     fi
   done
+  # fall back to man pages / PATH binaries
+  if command -v "$cmd" >/dev/null 2>&1; then
+    echo "=== $cmd ==="
+    man "$cmd" 2>/dev/null | head -30 || command -v "$cmd"
+    return 0
+  fi
   echo "neos-help: no such command '$cmd'"
+  echo "Run 'neos-help --list' for all available commands."
   return 1
 }
 
@@ -167,7 +179,7 @@ summary_table() {
   for cmd in \
     neos-menu neos-fetch neos-help \
     pkg neos-update neos-where neos-drivers neos-mirror neos-ports neos-backup neos-serve \
-    neos-monitor neos-disk neos-clean neos-battery \
+    neos-monitor neos-disk neos-clean neos-battery neos-alive neos-welcome \
     neos-net neos-ip neos-speedtest \
     neos-todo neos-notes neos-timer neos-calc neos-fortune \
      neos-new neos-lang neos-health \
@@ -193,7 +205,7 @@ summary_table() {
 list_only() {
   printf '%s\n' 'neos-menu neos-fetch neos-help pkg neos-update neos-where' \
     'neos-drivers neos-ports neos-backup neos-serve neos-monitor neos-disk' \
-    'neos-clean neos-battery neos-net neos-ip neos-speedtest neos-todo' \
+    'neos-clean neos-battery neos-alive neos-welcome neos-net neos-ip neos-speedtest neos-todo' \
     'neos-notes neos-timer neos-calc neos-fortune neos-new neos-lang' \
     'neos-health neos-users neos-guest neos-installer neos-distro' \
     'neos-wayland neos-wine neos-winetricks neos-winevm neos-uranium neos-xfce neos-mirror' \
@@ -207,9 +219,111 @@ list_only() {
      'neos-cloud neos-ipc neos-event neos-plugins neos-plugin-security'
 }
 
+show_version() {
+  local ver="1.2.0" codename="Stable" name="" osv="" osc="" core="" api=""
+  # Authoritative source: NeoCore's library (libneocore.sh).
+  if [[ -r /usr/lib/neos/libneocore.sh ]]; then
+    core="$(grep -m1E '^NEOCORE_VERSION=' /usr/lib/neos/libneocore.sh 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')" || true
+    api="$(grep -m1E '^NEOAPI_VERSION=' /usr/lib/neos/libneocore.sh 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')" || true
+  fi
+  core="${core:-$ver}"
+  api="${api:-$core}"
+  # /etc/os-release only overrides when this is genuinely a NeoOS install
+  # (otherwise we'd report the host distro on a dev machine).
+  if [[ -r /etc/os-release ]]; then
+    while IFS='=' read -r k v; do
+      v="${v//\"/}"
+      case "$k" in
+        NAME)            name="$v" ;;
+        VERSION)         osv="$v" ;;
+        VERSION_CODENAME) osc="$v" ;;
+      esac
+    done < /etc/os-release
+  fi
+  if [[ "$name" == *"NeoOS"* ]]; then
+    ver="${osv:-$ver}"
+    codename="${osc:-$codename}"
+  fi
+  printf 'NeoOS %s (%s)\n' "$ver" "$codename"
+  printf 'NeoCore %s\n' "$core"
+  printf 'NeoAPI  %s\n' "$api"
+}
+
+quickstart() {
+  cat <<'EOF'
+NeoOS 1.2.0 — getting started
+============================
+
+Install NeoPkg / update:    neos-update --apply        (apt update + upgrade + autoremove)
+Install system packages:    apt install <pkg>          (or: neos system install <pkg>)
+Install dev toolchains:     neos-lang install <python|node|rust|go|java|...>
+
+Navigation & help:
+    neos-help               this command reference
+    neos-help --list        all commands, one per line
+    neos-tools list         all NeoOS tools + summaries
+    neos-start              NeoOS start menu (apps / files / settings / power)
+    neos <cmd>              umbrella: doctor | clean | fix | launch | suggest
+    neos alive|welcome|tip  liveliness pulse / welcome banner / tip of the day
+
+System health:
+    neos doctor             NeoPulse health narration + neos-health checks
+    neos doctor --ai        same + AI explanation of any problem
+    neos-doctor --fix       automated dpkg/apt repair
+    neos-ai --check         verify the AI backend / model
+
+Files & projects:
+    neos launch <name>      create + enter a project Capsule workspace
+    neos-files              file manager (ranger)
+    neos-backup             back up configs + package list
+    neos-serve              quick HTTP file sharing (with upload)
+
+Networking:
+    neos-net                interfaces, gateway, DNS, ping
+    neos-ip                 local + public IP
+    neos-speedtest          download/upload speed test
+    neos-cloud              sync to Google Drive / WebDAV via rclone
+
+Graphics:
+    neos-wayland            install + start a Weston/XWayland session
+    neos-gui                install + select a GUI session (openbox/sway/xfce)
+
+Productivity:
+    neos-todo               todo list     neos-notes   notes
+    neos-timer              countdown     neos-calc    calculator
+    neos-fortune            random quotes/tips
+
+Tips:
+    • Run `neos-help <command>` for the full usage of any tool.
+    • Most tools accept `-h | --help` for a short usage line.
+    • Need a command? Try `neos-tools menu` (whiptail) or `neos-start`.
+EOF
+}
+
+search() {
+  local term="${1:-}"
+  [[ -n "$term" ]] || { echo "usage: neos-help --search <term>" >&2; return 2; }
+  local dir="$(dirname "$0")" f base sum matched=0
+  printf 'Commands matching "%s":\n' "$term"
+  for f in "$dir"/neos-* "$dir"/neo "$dir"/pkg "$dir"/neolibs; do
+    [[ -f "$f" ]] || continue
+    base="$(basename "$f")"
+    sum="$(grep -m1 '^# [a-z].* — ' "$f" 2>/dev/null | sed 's/^# //; s/ — /: /' || true)"
+    sum="${sum:-(no summary)}"
+    if printf '%s %s' "$base" "$sum" | grep -qi -- "$term"; then
+      printf '  %-16s %s\n' "$base" "$sum"
+      matched=$((matched+1))
+    fi
+  done
+  (( matched )) || echo "  (no matches — try: neos-help --list)"
+}
+
 case "${1:-}" in
   --list|-l)    list_only ;;
   --all|-a)     summary_table ;;
+  version|--version|-V) show_version ;;
+  quickstart)   quickstart ;;
+  --search)     shift; search "${1:-}" ;;
   --help|-h|"") overview ;;
   *)            full_usage "$1" ;;
 esac

@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# neos-alive — NeoOS liveliness pulse.
+# Prints a heartbeat banner, a "vitality" score (0-100) and a one-line vitals
+# summary: uptime, load, memory, disk, cooling, network, users, services.
+#
+#   neos-alive            full pulse (banner + vitality + metrics + narration)
+#   neos-alive --min      one-line summary (for scripts / welcome banner)
+#   neos-alive --watch    live pulse, refreshes every 2s  (Ctrl-C to stop)
+#
+set -uo pipefail
+
+# Optional: pull the authoritative version from NeoCore when available.
+if [[ -r /usr/lib/neos/libneocore.sh ]]; then
+  # shellcheck source=/usr/lib/neos/libneocore.sh
+  source /usr/lib/neos/libneocore.sh 2>/dev/null || true
+fi
+NEOCORE_VERSION="${NEOCORE_VERSION:-1.2.0}"
+NEOAPI_VERSION="${NEOAPI_VERSION:-1.2.0}"
+
+C='\033[0m';  R='\033[1;31m'; G='\033[1;32m'; Y='\033[1;33m'; B='\033[1;36m'; D='\033[1;30m'
+HEART_G="$G♥"; HEART_R="$R♥"; HEART_Y="$Y♥"
+
+# --- vitals primitives --------------------------------------------------------
+
+_uptime_s() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
+_fmt_up() {
+  local s="$1" d h m
+  d=$((s/86400)); h=$(((s%86400)/3600)); m=$(((s%3600)/60))
+  if (( d > 0 )); then printf '%dd %dh %dm' "$d" "$h" "$m"
+  else printf '%dh %dm' "$h" "$m"; fi
+}
+
+_mem_pct() {
+  local tot avail
+  read -r _ tot _ < <(awk '/^MemTotal:/ {print; exit}' /proc/meminfo) 2>/dev/null
+  read -r _ avail _ < <(awk '/^MemAvailable:/ {print; exit}' /proc/meminfo) 2>/dev/null
+  (( tot > 0 )) || { echo "n/a"; return; }
+  echo $(( (tot - avail) * 100 / tot ))
+}
+
+_disk_pct() {
+  local tot used
+  read -r tot used _ < <(df -P / 2>/dev/null | awk 'NR==2{print $2,$3}')
+  (( tot > 0 )) || { echo "n/a"; return; }
+  echo $(( used * 100 / tot ))
+}
+
+_load1() { read -r l _ < /proc/loadavg 2>/dev/null; echo "${l:-0}"; }
+_cpu_n()    { nproc 2>/dev/null || echo 1; }
+
+_temp_c() {
+  local tz t
+  for tz in /sys/class/thermal/thermal_zone*/temp; do
+    [[ -r "$tz" ]] || continue
+    read -r t < "$tz" 2>/dev/null || continue
+    echo $(( t / 1000 ))
+    return 0
+  done
+  echo "n/a"
+}
+
+_net_state() {
+  local iface
+  iface="$(ip route 2>/dev/null | awk '/default/{print $5; exit}')"
+  if [[ -n "$iface" ]]; then echo "online ($iface)"; else echo "offline"; fi
+}
+
+_svc_count() {
+  local n
+  n="$(ss -ltnH 2>/dev/null | wc -l)"
+  [[ -n "${n:-}" && "$n" =~ ^[0-9]+$ ]] && echo "$n" || echo "?"
+}
+
+_root_fs() {
+  df -PT / 2>/dev/null | awk 'NR==2{printf "%s (%s)", $1, $7}'
+}
+
+# --- vitality score -----------------------------------------------------------
+# 0  = unresponsive .. 100 = healthy. A heuristic blend of the live vitals.
+_vitality() {
+  local score=100 mem dsk tmp net
+  mem="$(_mem_pct)"; dsk="$(_disk_pct)"; tmp="$(_temp_c)"; net="$(_net_state)"
+  if [[ "$mem" =~ ^[0-9]+$ ]] && (( mem > 85 )); then score=$((score-15)); fi
+  if [[ "$dsk" =~ ^[0-9]+$ ]] && (( dsk > 80 )); then score=$((score-10)); fi
+  if [[ "$tmp" =~ ^[0-9]+$ ]] && (( tmp > 75 )); then score=$((score- 5)); fi
+  [[ "$net" == offline ]] && (( score -= 10 ))
+  (( score < 0 )) && score=0
+  (( score > 100 )) && score=100
+  echo "$score"
+}
+
+_banner() {
+  local up score
+  up="$(_fmt_up "$(_uptime_s)")"
+  score="$(_vitality)"
+  # A tiny heart that changes with vitality.
+  if   (( score >= 75 )); then printf "  ${HEART_G} NeoOS is alive  ${D}(beat: ${up}, vitality ${score}/100)${C}\n"
+  elif (( score >= 40 )); then printf "  ${HEART_Y} NeoOS is alive  ${D}(beat: ${up}, vitality ${score}/100)${C}\n"
+  else printf "  ${HEART_R} NeoOS is alive  ${D}(beat: ${up}, vitality ${score}/100 — attention needed)${C}\n"
+  fi
+}
+
+_metrics() {
+  local mem dsk tmp net svc tstr
+  mem="$(_mem_pct)"; dsk="$(_disk_pct)"; tmp="$(_temp_c)"; net="$(_net_state)"; svc="$(_svc_count)"
+  if [[ "$tmp" == "n/a" ]]; then tstr="n/a"; else tstr="${tmp}°C"; fi
+  printf 'vitality: %s%%   load: %s   mem: %s%%   disk: %s%%   temp: %s   net: %s   users: %s   services: %s\n' \
+    "$(_vitality)" "$(_load1)" "$mem" "$dsk" "$tstr" "$net" "$(who 2>/dev/null | wc -l)" "${svc:-?}"
+}
+
+_narration() {
+  local mem dsk tmp net score
+  mem="$(_mem_pct)"; dsk="$(_disk_pct)"; tmp="$(_temp_c)"; net="$(_net_state)"; score="$(_vitality)"
+  local mem_m="normal"; dsk_m="healthy"; tmp_m="ok"; net_m="reachable"; marks=()
+  if [[ "$mem" =~ ^[0-9]+$ ]] && (( mem > 85 )); then mem_m="under pressure ($mem% used)"
+  elif [[ "$mem" =~ ^[0-9]+$ ]]; then mem_m="normal ($mem% used)"; fi
+  if [[ "$dsk" =~ ^[0-9]+$ ]] && (( dsk > 90 )); then dsk_m="almost full ($dsk% used)"
+  elif [[ "$dsk" =~ ^[0-9]+$ ]]; then dsk_m="healthy ($dsk% used)"; fi
+  if [[ "$tmp" == "n/a" ]]; then tmp_m="n/a"
+  else (( tmp > 75 )) && tmp_m="hot (${tmp}C)" || tmp_m="ok (${tmp}C)"; fi
+  [[ "$net" == offline ]] && net_m="down"
+  printf '  NeoCore %s (NeoAPI %s) · %s on %s · ' "$NEOCORE_VERSION" "$NEOAPI_VERSION" "$(_fmt_up "$(_uptime_s)")" "$(_root_fs)"
+  printf 'vitality %s%% · memory %s · cooling %s · disk %s · network %s\n' "$score" "$mem_m" "$tmp_m" "$dsk_m" "$net_m"
+}
+
+run_once() {
+  _banner
+  _metrics
+  _narration
+}
+
+# --- main ---------------------------------------------------------------------
+case "${1:-}" in
+  --min)
+    declare s m; s="$(_vitality)"; m="$(_mem_pct)"
+    printf 'NeoOS alive · vitality %s%% · load %s · mem %s%%\n' "$s" "$(_load1)" "${m:-?}"
+    ;;
+  --watch)
+    declare interval="${2:-2}"
+    while :; do
+      clear 2>/dev/null || printf '\033[H\033[2J'
+      run_once
+      printf '\n(ctrl-c to stop)\n'
+      sleep "$interval"
+    done
+    ;;
+  -h|--help) sed -n '2,8p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//' ;;
+  "" )       run_once ;;
+  *)         printf 'neos-alive: unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac

@@ -70,5 +70,6 @@ case "${1:-}" in
     grep -rni -- "${2:-}" "$DIR" 2>/dev/null || echo "No matches."
     ;;
   -h|--help) sed -n '2,11p' "$0" | sed 's/^#   /  /; s/^#//' ;;
+  --version|-v) echo "neos-notes ${NEOS_VERSION:-1.2.0}" ;;
   *) echo "neos-notes: unknown option '$1'"; exit 1 ;;
 esac

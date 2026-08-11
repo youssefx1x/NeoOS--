@@ -2,6 +2,8 @@
 # neos-locale — NeoLocalization: locale list/tz (language & timezone)
 set -euo pipefail
 case "${1:-list}" in
+  -h|--help) echo "usage: neos-locale [list|tz|set-tz <Zone/Region>]" ; exit 0 ;;
+  --version|-v) echo "neos-locale ${NEOS_VERSION:-1.2.0}" ; exit 0 ;;
   list|locales) locale -a 2>/dev/null | head -n 30 ;;
   tz|timezone) timedatectl show -p Timezone 2>/dev/null | cut -d= -f2 || cat /etc/timezone 2>/dev/null || echo "n/a" ;;
   set-tz) tz="${2:-}"; [[ -z "$tz" ]] && { echo "usage: neos-locale set-tz <Zone/Region>" >&2; exit 2; }

@@ -11,7 +11,7 @@ CFLAGS ?= -O2 -Wall -Wextra -fPIC -Iinclude -Iinclude/neo
 AR     ?= ar
 
 LIBNAME = neocore
-NEOAPI_VERSION := 1.1.1
+NEOAPI_VERSION := 1.2.0
 SOVERSION := 1
 
 SRC = src/neo_core.c src/neo_system.c src/neo_fs.c src/neo_net.c \
@@ -54,4 +54,4 @@ python:
 
 clean:
 	$(RM) $(OBJ) libneo.so libneo.a libneo.so.$(NEOAPI_VERSION) \
-	      libneo.so.$(SOVERSION) libneo.so.1 libneo.so.1.1.1
+	      libneo.so.$(SOVERSION) libneo.so.1 libneo.so.1.2.0

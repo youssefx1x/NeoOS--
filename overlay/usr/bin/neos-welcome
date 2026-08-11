@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# neos-welcome — NeoOS interactive landing banner.
+# Shown on login (see /etc/profile.d/neos-welcome.sh) and via `neos welcome`.
+# Prints: ASCII logo, a greeting, a one-line vitality summary, and a tip of the day.
+#   neos-welcome            full landing banner
+#   neos-welcome --min      greeting + one-line vitals only
+#
+set -uo pipefail
+
+# --- NeoOS ASCII logo (fallback if neos-fetch is absent) ----------------------
+_logo_neos() {
+  printf '\n     _   _ ______  _____  ____\n'
+  printf '     | \\ | | ____|/ _ \\ \\/ /\n'
+  printf '     |  \\| |  _| | | |  \\  /  \n'
+  printf '     | |\\  | |___| |_| | /  \\  \n'
+  printf '     |_| \\_|_____|\___/_/\\/\\_\\\n'
+  printf '     terminal-first — NeoOS 1.2.0 Stable\n\n'
+}
+
+_greeting() {
+  local user host
+  user="${USER:-${LOGNAME:-user}}"
+  host="$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo host)"
+  printf '  Welcome back, %s — NeoOS is alive on %s\n' "$user" "$host"
+  printf '  %s\n' "$(date '+%A, %d %B %Y · %H:%M %Z')"
+}
+
+_greet_min() {
+  printf 'NeoOS • welcome back, %s • %s\n' "${USER:-${LOGNAME:-user}}" "$(date '+%H:%M')"
+}
+
+_daily_tip() {
+  # Prefer the shared fortune/tip bank so tips stay in one place.
+  if command -v neos-fortune >/dev/null 2>&1; then
+    neos-fortune tip 2>/dev/null && return
+  fi
+  # Embedded fallback: one tip per day, deterministic, offline.
+  local tips=(
+    "Run \`neo doctor\` for a NeoPulse health narrated by NeoCore."
+    "Every \`neos launch <project>\` creates a self-documenting Capsule workspace."
+    "Tip: \`neos clean --apply\` empties caches; \`neos fix\` repairs apt/dpkg."
+    "NeoPkg 2.0 gives you \`pkg rollback\` and per-transaction snapshots."
+    "Use \`neos-help --search <term>\` to find the right NeoOS tool fast."
+  )
+  local n=${#tips[@]}
+  local idx=$(( ( ($(date +%s)) / 86400 ) % n ))
+  printf '  tip: %s\n' "${tips[$idx]}"
+}
+
+case "${1:-}" in
+  --min)
+    _greet_min
+    if command -v neos-alive >/dev/null 2>&1; then neos-alive --min 2>/dev/null || true; fi
+    ;;
+  -h|--help)
+    sed -n '2,8p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+    ;;
+  "")
+    if command -v neos-fetch >/dev/null 2>&1; then
+      neos-fetch --logo 2>/dev/null || _logo_neos
+    else
+      _logo_neos
+    fi
+    _greeting
+    if command -v neos-alive >/dev/null 2>&1; then neos-alive --min 2>/dev/null || true; fi
+    _daily_tip
+    printf '  (run \`neos-help\` to explore NeoOS)\n'
+    ;;
+  *) printf 'neos-welcome: unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac

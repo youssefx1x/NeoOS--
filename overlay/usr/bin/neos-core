@@ -13,7 +13,7 @@ case "$sub" in
   services) neocore_services 2>/dev/null || systemctl list-units --type=service --state=running 2>/dev/null | head -n 20 || echo "no systemd" ;;
   diagnose|doctor) neocore_diagnose 2>/dev/null || neos-health || true ;;
   repair|fix) echo "neos-core repair: run 'neos-doctor --fix' as root" >&2; exit 1 ;;
-  version|-v|--version) echo "NeoCore ${NEOCORE_VERSION:-1.1.1} (NeoAPI ${NEOAPI_VERSION:-1.1.1})" ;;
+  version|-v|--version) echo "NeoCore ${NEOCORE_VERSION:-1.2.0} (NeoAPI ${NEOAPI_VERSION:-1.2.0})" ;;
   events) neocore_events ;;
   config) neocore_config_get "$1" "${2:-}" || true ;;
   *) echo "usage: neos-core [status|info|services|diagnose|repair|version|events|config <key>]" >&2; exit 2 ;;

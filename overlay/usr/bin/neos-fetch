@@ -14,7 +14,7 @@ logo=(
 '    | |\  | |___| |_| /  \  /  \ '
 '    |_| \_|_____|\___/_/\_\/_/\_\'
 '      terminal-first Debian 13   '
-'      NeoOS 1.1.1 Stable                  '
+'      NeoOS 1.2.0 Stable                  '
 )
 
 os_pretty() {
