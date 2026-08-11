@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # neos-mounts — list mounted filesystems
 set -euo pipefail
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+case "${1:-}" in
+  -h|--help) echo "usage: neos-mounts  (lists mounted filesystems from /proc/mounts)" ; exit 0 ;;
+  --version|-v) echo "neos-mounts ${NEOS_VERSION}" ; exit 0 ;;
+esac
 printf '%-20s %-18s %s\n' "device" "mount point" "fstype"
 while read -r dev mp fs _ _; do
   printf '%-20s %-18s %s\n' "$dev" "$mp" "$fs"

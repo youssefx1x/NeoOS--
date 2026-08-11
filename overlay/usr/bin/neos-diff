@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # neos-diff — colored diff of two files
 set -euo pipefail
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+case "${1:-}" in
+  -h|--help) echo "usage: neos-diff FILE1 FILE2" ; exit 0 ;;
+  --version|-v) echo "neos-diff ${NEOS_VERSION}" ; exit 0 ;;
+esac
 if [[ $# -lt 2 ]]; then
   echo "usage: neos-diff FILE1 FILE2" >&2
   exit 2

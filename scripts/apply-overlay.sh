@@ -67,7 +67,11 @@ install -Dm0644 "$REPO_ROOT/neolibs/COMPAT.md" "$ROOTFS/usr/share/doc/neolibs/CO
 log "Shipping Calamares package list"
 install -Dm0644 "$REPO_ROOT/config/packages.calamares" "$ROOTFS/usr/lib/neos/packages.calamares" 2>/dev/null || true
 
-# 2c. Build + install the NeoLIBs native C ABI core (libneo / NeoAPI, v1.1 stable)
+# 2c. Ship the Wayland package manifest so neos-wayland/menu can install it on demand
+log "Shipping Wayland package manifest"
+install -Dm0644 "$REPO_ROOT/config/packages.wayland" "$ROOTFS/usr/lib/neos/packages.wayland"
+
+# 2d. Build + install the NeoLIBs native C ABI core (libneo / NeoAPI, v1.1 stable)
 log "Building NeoLIBs native core (libneo)"
 NEOLIBS_DIR="$REPO_ROOT/neolibs/libneo-core"
 if [[ -d "$NEOLIBS_DIR" && -x "$(command -v make)" ]]; then
@@ -77,7 +81,7 @@ if [[ -d "$NEOLIBS_DIR" && -x "$(command -v make)" ]]; then
   if [[ -f "$NEOLIBS_DIR/libneo.so" ]]; then
     install -m 0755 "$NEOLIBS_DIR/libneo.so" "$ROOTFS/usr/lib/libneo.so"
     ln -sf libneo.so "$ROOTFS/usr/lib/libneo.so.1"
-    ln -sf libneo.so.1 "$ROOTFS/usr/lib/libneo.so.1.1.1"
+    ln -sf libneo.so.1 "$ROOTFS/usr/lib/libneo.so.1.2.0"
     install -m 0644 "$NEOLIBS_DIR/libneo.a" "$ROOTFS/usr/lib/libneo.a" 2>/dev/null || true
     cp -r "$NEOLIBS_DIR/include/neo/." "$ROOTFS/usr/include/neo" 2>/dev/null || true
     log "Installed libneo.so (NeoAPI 1.1) -> $ROOTFS/usr/{lib,include/neo}"
@@ -93,12 +97,12 @@ chmod 0755 "$ROOTFS/etc/network/if-up.d/neos-uranium-suggest" 2>/dev/null || tru
 
 # 3. os-release branding
 cat > "$ROOTFS/etc/os-release" <<'EOF'
-PRETTY_NAME="NeoOS 1.1.1 Stable (Debian 13 trixie based)"
+PRETTY_NAME="NeoOS 1.2.0 Stable (Debian 13 trixie based)"
 NAME="NeoOS"
 ID=neoos
 ID_LIKE=debian
-VERSION_ID="1.1.1"
-VERSION="1.1.1 Stable"
+VERSION_ID="1.2.0"
+VERSION="1.2.0 Stable"
 VERSION_CODENAME=trixie
 HOME_URL="https://neoos.local"
 SUPPORT_URL="https://neoos.local/support"
@@ -112,7 +116,7 @@ touch "$ROOTFS/etc/hostname"
 # 5. motd
 cat > "$ROOTFS/etc/motd" <<'EOF'
 
-  NeoOS 1.1.1 Stable — a Debian 13 terminal distribution
+  NeoOS 1.2.0 Stable — a Debian 13 terminal distribution
 
   Unified CLI ........ neo        (NeoCore + NeoPkg 2.0 + neos-*)
   Start menu ........ neos-menu

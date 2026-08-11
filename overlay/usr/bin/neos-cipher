@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # neos-cipher — AES-256 file encrypt/decrypt (openssl)
 set -euo pipefail
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+case "${1:-}" in
+  -h|--help) echo "usage: neos-cipher {enc|dec} INFILE OUTFILE PASSWORD" ; exit 0 ;;
+  --version|-v) echo "neos-cipher ${NEOS_VERSION}" ; exit 0 ;;
+esac
 if ! command -v openssl >/dev/null 2>&1; then
   echo "neos-cipher: openssl not available" >&2
   exit 1

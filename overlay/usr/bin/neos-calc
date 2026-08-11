@@ -7,6 +7,11 @@
 # Supports + - * / % ** and math functions (sqrt, sin, cos, log, ...).
 
 set -euo pipefail
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+case "${1:-}" in
+  -h|--help) echo "usage: neos-calc [EXPR | args...]  (e.g. neos-calc '2+2*5')" ; echo "Engines tried: python3, bc, awk. Interactive with no args." ; exit 0 ;;
+  --version|-v) echo "neos-calc $NEOS_VERSION"; exit 0 ;;
+esac
 
 # Pick an engine.
 ENGINE=""

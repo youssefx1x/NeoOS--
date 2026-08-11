@@ -18,24 +18,50 @@ run_root() {
   fi
 }
 
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+# Single source of truth for the Wayland stack (shipped by the build). Falls
+# back to an explicit list when the manifest isn't available (e.g. dev/test).
+WAYLAND_MANIFEST="${NEOS_WAYLAND_MANIFEST:-/usr/lib/neos/packages.wayland}"
+# Binaries we require present before declaring the stack "installed".
+WAYLAND_BINS=(weston seatd xwayland foot wmenu)
+# Packages pulled in if the manifest is absent (matches packages.wayland).
+WAYLAND_PKGS_FALLBACK=(weston seatd xwayland foot wmenu mesa-utils libgl1-mesa-dri)
+
+read_manifest() {
+  # Reads the manifest (one package per line; '#' comments and blanks skipped)
+  # and prints a space-separated list safe for apt-get install.
+  if [[ ! -r "$WAYLAND_MANIFEST" ]]; then
+    printf '%s\n' "${WAYLAND_PKGS_FALLBACK[@]}"
+    return 0
+  fi
+  local line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"          # strip comments
+    line="$(echo "$line" | tr -d '[:space:]')"  # trim whitespace
+    [[ -n "$line" ]] && printf '%s\n' "$line"
+  done < "$WAYLAND_MANIFEST"
+}
+
 ensure_stack() {
   local missing=()
-  for p in weston seatd xwayland foot wmenu; do
+  for p in "${WAYLAND_BINS[@]}"; do
     command -v "$p" >/dev/null 2>&1 || missing+=("$p")
   done
   if [[ ${#missing[@]} -gt 0 ]]; then
     log "Installing missing Wayland components: ${missing[*]}"
-    local pkgs=(weston seatd xwayland foot wmenu mesa-utils libgl1-mesa-dri)
+    local pkgs=()
+    while IFS= read -r p; do pkgs+=("$p"); done < <(read_manifest)
     if ! command -v apt-get >/dev/null 2>&1; then
       err "apt-get not found. Install manually:"
-      err "  sudo apt install weston seatd xwayland foot wmenu mesa-utils"
+      err "  apt install ${pkgs[*]}"
+      err "manifest: $WAYLAND_MANIFEST"
       return 1
     fi
     if run_root apt-get install -y "${pkgs[@]}" 2>&1; then
       log "Wayland stack installed."
     else
       err "apt-get install failed."
-      err "Try: sudo apt install ${pkgs[*]}"
+      err "Try: apt install ${pkgs[*]}"
       return 1
     fi
   fi
@@ -53,10 +79,22 @@ mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 export XDG_SESSION_TYPE=wayland
-weston --backend=auto --xwayland &
+# seatd must run before Weston to manage the evdev seats.
+if command -v seatd >/dev/null 2>&1; then
+  seatd >/dev/null 2>&1 &
+fi
+if command -v weston >/dev/null 2>&1; then
+  weston --backend=auto --xwayland &
+else
+  echo "neos-wayland: weston not installed" >&2
+fi
 sleep 2
 export DISPLAY=:0
-foot
+if command -v foot >/dev/null 2>&1; then
+  foot
+else
+  xterm
+fi
 EOF
     chmod +x "$session_script"
   fi
@@ -64,7 +102,9 @@ EOF
 }
 
 case "${1:-}" in
-  install) ensure_stack;;
-  session) run_session;;
-  *) ensure_stack && run_session;;
+  install) ensure_stack ;;
+  session) run_session ;;
+  version|--version|-v) echo "neos-wayland ${NEOS_VERSION}" ;;
+  -h|--help|help) sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//'; echo "  neos-wayland install    install the Wayland stack"; echo "  neos-wayland session    launch a Wayland session"; echo "  neos-wayland             install (if missing) then launch" ;;
+  *) ensure_stack && run_session ;;
 esac

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # neos-grep — rg-or-grep search wrapper
 set -euo pipefail
+NEOS_VERSION="${NEOS_VERSION:-1.2.0}"
+case "${1:-}" in
+  -h|--help) echo "usage: neos-grep [OPTIONS] PATTERN [PATH...]" ; echo "Delegates to rg (ripgrep), falling back to grep." ; exit 0 ;;
+  --version|-v) echo "neos-grep ${NEOS_VERSION}" ; exit 0 ;;
+esac
 if command -v rg >/dev/null 2>&1; then
   exec rg "$@"
 fi

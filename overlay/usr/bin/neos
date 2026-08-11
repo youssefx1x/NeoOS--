@@ -7,6 +7,9 @@
 #   neos fix              recover from common breakage (dpkg/apt autoremove) (#11)
 #   neos launch [<proj>]  enter/create a project Capsule workspace (#2/#10)
 #   neos suggest [--history N]  terminal memory + intent hints (#9/#13)
+#   neos alive              NeoOS liveliness pulse + vitality score (1.2.0)
+#   neos welcome            NeoOS welcome banner (logo + vitals + tip of the day)
+#   neos tip                NeoOS tip of the day (reuses neos-fortune)
 #
 # Most subcommands delegate to dedicated NeoOS tools (neos-health, neos-clean)
 # so behaviour stays consistent; `neos` adds the "one command" entry point and
@@ -304,6 +307,9 @@ usage:
   neos fix                  repair broken dpkg/apt state + remove orphans
   neos launch [--list|proj] enter or create a project Capsule
   neos suggest [--history N] terminal memory / intent hints
+  neos alive              NeoOS liveliness pulse + vitality score
+  neos welcome            NeoOS welcome banner (logo + vitals + tip of the day)
+  neos tip                NeoOS tip of the day
 
 Options:
   --fix       run automated repair during 'neos doctor'
@@ -319,7 +325,7 @@ main() {
       if [[ $# -gt 1 ]]; then
         sub="$2"; shift
         case "$sub" in
-          doctor|clean|fix|launch|suggest)
+          doctor|clean|fix|launch|suggest|alive|welcome|tip)
             sed -n '3,9p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
             ;;
           *) err "no such topic: $sub"; return 2 ;;
@@ -333,6 +339,9 @@ main() {
     fix)      shift; cmd_fix      "$@" ;;
     launch)   shift; cmd_launch   "$@" ;;
     suggest)  shift; cmd_suggest  "$@" ;;
+    alive)    shift; have neos-alive  && neos-alive  "$@" || err "neos-alive is not installed" ;;
+    welcome)  shift; have neos-welcome && neos-welcome "$@" || err "neos-welcome is not installed" ;;
+    tip)      shift; have neos-fortune && neos-fortune tip "$@" || printf 'tip: run `neos doctor` for a NeoPulse health check.\n' ;;
     *) err "unknown subcommand: $sub"; usage; return 2 ;;
   esac
 }
