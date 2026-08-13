@@ -8,7 +8,7 @@ openssl
 rsync
 nmap
 traceroute
-dnsutils
+bind9-dnsutils
 whois
 netcat-openbsd
 socat

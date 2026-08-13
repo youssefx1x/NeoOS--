@@ -135,7 +135,7 @@ internet_menu() {
   choice=$(BOX "NeoOS - Internet" "Choose an internet application" 22 70 12 \
     "Install browsers"  "lynx, w3m, links terminal browsers" \
     "Install tools"     "curl, wget, aria2, openssh-client, rsync" \
-    "Install network"   "nmap, dnsutils, whois, netcat, traceroute" \
+    "Install network"   "nmap, bind9-dnsutils, whois, netcat, traceroute" \
     "Install messaging" "weechat, irssi terminal IRC" \
     "Configure network" "ip, ping, ethtool, network setup" \
     "Google Drive"      "neos-cloud: sync files to your 15 GB Drive" \
@@ -143,7 +143,7 @@ internet_menu() {
   case "$choice" in
     "Install browsers") run_as_root apt install -y lynx w3m links elinks || pause;;
     "Install tools")    run_as_root apt install -y curl wget aria2 openssh-client rsync || pause;;
-    "Install network")  run_as_root apt install -y nmap dnsutils whois netcat-openbsd traceroute || pause;;
+    "Install network")  run_as_root apt install -y nmap bind9-dnsutils whois netcat-openbsd traceroute || pause;;
     "Install messaging")run_as_root apt install -y weechat irssi || pause;;
     "Configure network") run_as_root sh -c 'dhclient -v; ip addr; ip route' 2>/dev/null || true; pause;;
     "Google Drive") neos-cloud login 2>&1 || pause; neos-cloud status 2>&1 || pause;;
@@ -156,14 +156,14 @@ wayland_menu() {
   local choice
   choice=$(BOX "NeoOS - Wayland" "Wayland graphics stack" 22 70 12 \
     "Start Wayland"    "Launch Weston compositor with xwayland" \
-    "Install Wayland"  "wayland, weston, wlroots (libwlroots), seatd" \
+    "Install Wayland"  "wayland-utils, weston, wlroots (libwlroots), seatd" \
     "Install Winetricks" "Wine + winetricks (Windows app installer)" \
     "Wayland apps"     "foot, wmenu terminal + launcher" \
     "Drivers for GPU"  "mesa drivers, firmware (neos-drivers)" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "Start Wayland")   neos-wayland;;
-    "Install Wayland") run_as_root apt install -y wayland weston libwlroots-0.18 seatd xwayland foot wmenu || pause;;
+    "Install Wayland") run_as_root apt install -y wayland-utils weston libwlroots-0.18 seatd xwayland foot wmenu || pause;;
     "Install Winetricks") neos-wine --install 2>&1 || true;;
     "Wayland apps")    run_as_root apt install -y foot wmenu || pause;;
     "Drivers for GPU") run_as_root neos-drivers || pause;;

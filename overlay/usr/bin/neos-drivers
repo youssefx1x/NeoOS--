@@ -63,8 +63,8 @@ install_gpu() {
 install_wifi() {
   ensure_nonfree_firmware
   log "Installing network firmware + tools"
-  apt-get install -y firmware-linux firmware-misc-nonfree iw rfkill wpasupplicant \
-    network-manager network-manager-wifi
+  apt-get install -y firmware-linux firmware-misc-nonfree iw rfkill wpasupplicant iwd \
+    network-manager network-manager-iwd
   warn "Re-check connectivity after reboot; use nmcli to connect to WiFi."
 }
 

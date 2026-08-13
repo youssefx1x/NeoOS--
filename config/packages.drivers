@@ -38,8 +38,9 @@ firmware-brcm80211
 iw
 rfkill
 wpasupplicant
+iwd
 network-manager
-network-manager-wifi
+network-manager-iwd
 
 # --- Bluetooth ---
 bluez
