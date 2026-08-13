@@ -9,8 +9,16 @@ if [[ -d "$PDIR" ]]; then
   done 2>/dev/null || true
 fi
 case "${1:-}" in
-  list|ls) echo "(see policies above)" ;;
-  grant) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-plugin-security grant <plugin>" >&2; exit 2; }
-    echo "grant: edit $PDIR/$id.policy as root to add capabilities" ;;
-  *) echo "usage: neos-plugin-security [list|grant <plugin>]" >&2; exit 0 ;;
+  list|ls) echo "(policies listed above)" ;;
+  grant) id="${2:-}";
+    [[ -z "$id" ]] && { echo "usage: neos-plugin-security grant <plugin> [capability...]" >&2; exit 2; }
+    mkdir -p "$PDIR" 2>/dev/null || { echo "neos-plugin-security: cannot create $PDIR (needs root/permissions)" >&2; exit 1; }
+    cap="${3:-default}"
+    echo "# NeoPlugin policy — granted $(date -u +%FT%TZ) by $(id -un)" > "$PDIR/$id.policy"
+    echo "plugin=$id" >> "$PDIR/$id.policy"
+    echo "capability=$cap" >> "$PDIR/$id.policy"
+    echo "granted: $PDIR/$id.policy (cap=$cap)" ;;
+  revoke) id="${2:-}"; [[ -z "$id" ]] && { echo "usage: neos-plugin-security revoke <plugin>" >&2; exit 2; }
+    [[ -e "$PDIR/$id.policy" ]] && rm -f "$PDIR/$id.policy" && echo "revoked: $PDIR/$id.policy" || echo "revoked: no policy for '$id'" ;;
+  *) echo "usage: neos-plugin-security [list|grant <plugin> [cap]|revoke <plugin>]" >&2; exit 0 ;;
 esac

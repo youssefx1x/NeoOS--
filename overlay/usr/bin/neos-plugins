@@ -5,8 +5,9 @@ PDIR="${NEOS_PLUGINS_DIR:-/opt/neos-plugins}"
 case "${1:-list}" in
   list|ls) [[ -d "$PDIR" ]] && ls -1 "$PDIR" 2>/dev/null || echo "(no plugins in $PDIR)" ;;
   enable) name="${2:-}"; [[ -z "$name" ]] && { echo "usage: neos-plugins enable <name>" >&2; exit 2; }
-    echo "enabled: $PDIR/$name.enabled" ;;
+    mkdir -p "$PDIR" 2>/dev/null || { echo "neos-plugins: cannot create $PDIR (needs root/permissions)" >&2; return 1; }
+    touch "$PDIR/$name.enabled" 2>/dev/null && echo "enabled: $PDIR/$name.enabled" || { echo "neos-plugins: cannot write $PDIR/$name.enabled" >&2; return 1; } ;;
   disable) name="${2:-}"; [[ -z "$name" ]] && { echo "usage: neos-plugins disable <name>" >&2; exit 2; }
-    echo "disabled: $PDIR/$name.enabled removed" ;;
+    [[ -e "$PDIR/$name.enabled" ]] && rm -f "$PDIR/$name.enabled" 2>/dev/null && echo "disabled: $PDIR/$name.enabled removed" || echo "disabled: $name was not enabled" ;;
   *) echo "usage: neos-plugins [list|enable|disable <name>]" >&2; exit 2 ;;
 esac

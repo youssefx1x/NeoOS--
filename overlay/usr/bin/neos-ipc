@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 # neos-ipc — NeoIPC: inter-component communication endpoints
 set -euo pipefail
-echo "NeoIPC endpoints:"
-found=0
-for s in /run/neos/neo.sock /run/neos/neo.ipc; do
-  if [[ -S "$s" ]]; then echo "  socket: $s"; found=1; fi
-done
-[[ $found -eq 0 ]] && echo "  (no IPC socket active)"
-command -v socat >/dev/null 2>&1 && echo "  bridge: socat available" || echo "  bridge: install socat"
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NEOS_EVENT="${NEOS_EVENT:-$(command -v neos-event || echo "$SELF_DIR/neos-event")}"
+EVENT_LOG="${NEOS_EVENT_LOG:-/var/log/neos/events.log}"
+
 case "${1:-}" in
-  send) echo "neos-ipc send: publish a message to the NeoEvent bus" ;;
-  recv) echo "neos-ipc recv: subscribe to NeoEvent events" ;;
-  *) echo "usage: neos-ipc [send|recv] [msg]" >&2 ;;
+  send)
+    msg="${2:-}"
+    [[ -n "$msg" ]] || { echo "usage: neos-ipc send <message>" >&2; exit 2; }
+    "$NEOS_EVENT" emit ipc "$msg"
+    ;;
+  recv)
+    n="${2:-20}"
+    [[ "$n" =~ ^[0-9]+$ ]] || { echo "usage: neos-ipc recv [n]" >&2; exit 2; }
+    tail -n "$n" -f "$EVENT_LOG" 2>/dev/null \
+      || echo "neos-ipc recv: no events (write one with: neos-ipc send <msg>)" >&2
+    ;;
+  -h|--help|*) echo "NeoIPC endpoints:"; echo "  event bus: $EVENT_LOG"; command -v socat >/dev/null 2>&1 && echo "  bridge: socat available" || echo "  bridge: install socat";
+      for s in /run/neos/neo.sock /run/neos/neo.ipc; do [[ -S "$s" ]] && echo "  socket: $s"; done;
+      echo "usage: neos-ipc [send <msg> | recv [n]]" ;;
 esac

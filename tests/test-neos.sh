@@ -271,6 +271,33 @@ grep -q 'usage: neos-cloud upload' <<< "$out" && ok "neos-cloud upload requires 
 out="$("$nc" list 2>&1 || true)"
 grep -qi 'neos-cloud login' <<< "$out" && ok "neos-cloud list graceful when unlinked" || bad "neos-cloud list graceful when unlinked"
 
+# ---- neos-ipc: send publishes to the NeoEvent bus ----
+nipc="./overlay/usr/bin/neos-ipc"
+EVT_TMP="$(mktemp -d)"
+export NEOS_EVENT_LOG="$EVT_TMP/events.log"
+timeout 5 bash "$nipc" send "hello-bus" >/dev/null 2>&1 || true
+grep -q 'hello-bus' "$EVT_TMP/events.log" && ok "neos-ipc send writes to event log" || bad "neos-ipc send writes to event log"
+rm -rf "$EVT_TMP"
+
+# ---- neos-plugins: enable/disable write marker files ----
+npl="./overlay/usr/bin/neos-plugins"
+PLUG_TMP="$(mktemp -d)"
+export NEOS_PLUGINS_DIR="$PLUG_TMP"
+out="$(bash "$npl" enable demo 2>&1)"
+[[ -e "$PLUG_TMP/demo.enabled" ]] && ok "neos-plugins enable writes marker" || bad "neos-plugins enable writes marker"
+bash "$npl" disable demo >/dev/null 2>&1 || true
+[[ ! -e "$PLUG_TMP/demo.enabled" ]] && ok "neos-plugins disable removes marker" || bad "neos-plugins disable removes marker"
+rm -rf "$PLUG_TMP"
+
+# ---- neos-plugin-security: grant writes a policy file ----
+nsec="./overlay/usr/bin/neos-plugin-security"
+SEC_TMP="$(mktemp -d)"
+export NEOS_PLUGINS_DIR="$SEC_TMP"
+bash "$nsec" grant secplug read >/dev/null 2>&1 || true
+grep -q 'capability=read' "$SEC_TMP/secplug.policy" \
+  && ok "neos-plugin-security grant writes policy" || bad "neos-plugin-security grant writes policy"
+rm -rf "$SEC_TMP"
+
 echo
 printf 'neos suite: %d passed, %d failed\n' "$pass" "$fail"
 (( fail == 0 )) || exit 1
