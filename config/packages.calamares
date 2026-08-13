@@ -9,7 +9,7 @@ qml-module-qtquick-window2
 qml-module-qtquick2
 qml-module-qtquick-controls2
 qml-module-qtgraphicaleffects
-policykit-1
+polkitd
 pkexec
 # GUI session deps so the installer has a display
 weston

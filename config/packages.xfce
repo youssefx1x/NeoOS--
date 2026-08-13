@@ -8,7 +8,7 @@ xfce4-power-manager
 thunar-archive-plugin
 gvfs-fuse
 gvfs-backends
-policykit-1
+polkitd
 xfce4-power-manager-plugins
 lightdm
 lightdm-gtk-greeter

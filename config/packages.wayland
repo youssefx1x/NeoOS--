@@ -2,7 +2,7 @@ wayland
 libwayland-dev
 wayland-protocols
 weston
-wlroots
+libwlroots-0.18
 seatd
 xwayland
 wmenu
@@ -11,4 +11,4 @@ xterm
 libgl1-mesa-dri
 libglx-mesa0
 mesa-utils
-libglib2.0-0
+libglib2.0-0t64

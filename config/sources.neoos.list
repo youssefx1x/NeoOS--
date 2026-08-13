@@ -2,5 +2,5 @@
 # Enable with:  neos-mirror apply
 # Disable with: neos-mirror revert
 # Point at your endpoint via:  NEOS_MIRROR_URL=https://mirror.example/neoos/debian
-deb https://dl.neoos.local/debian trixie main contrib non-free-firmware
-# deb-src https://dl.neoos.local/debian trixie main contrib non-free-firmware
+deb https://dl.neoos.local/debian trixie main contrib non-free non-free-firmware
+# deb-src https://dl.neoos.local/debian trixie main contrib non-free non-free-firmware

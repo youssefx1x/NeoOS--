@@ -154,14 +154,14 @@ wayland_menu() {
   local choice
   choice=$(BOX "NeoOS - Wayland" "Wayland graphics stack" 22 70 12 \
     "Start Wayland"    "Launch Weston compositor with xwayland" \
-    "Install Wayland"  "wayland, weston, wlroots, seatd, xwayland" \
+    "Install Wayland"  "wayland, weston, wlroots (libwlroots), seatd" \
     "Install Winetricks" "Wine + winetricks (Windows app installer)" \
     "Wayland apps"     "foot, wmenu terminal + launcher" \
     "Drivers for GPU"  "mesa drivers, firmware (neos-drivers)" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "Start Wayland")   neos-wayland;;
-    "Install Wayland") run_as_root apt install -y wayland weston wlroots seatd xwayland foot wmenu || pause;;
+    "Install Wayland") run_as_root apt install -y wayland weston libwlroots-0.18 seatd xwayland foot wmenu || pause;;
     "Install Winetricks") neos-wine --install 2>&1 || true;;
     "Wayland apps")    run_as_root apt install -y foot wmenu || pause;;
     "Drivers for GPU") run_as_root neos-drivers || pause;;

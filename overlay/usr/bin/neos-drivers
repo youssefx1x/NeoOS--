@@ -24,12 +24,15 @@ ensure_nonfree_firmware() {
   local sl=/etc/apt/sources.list
   local d=/etc/apt/sources.list.d/neoos-firmware.list
   if ! grep -q "non-free-firmware" "$sl" 2>/dev/null && [[ ! -f "$d" ]]; then
-    log "Enabling non-free-firmware component"
+    log "Enabling non-free + non-free-firmware components"
     cp "$sl" "$sl.bak" 2>/dev/null || true
-    sed -i 's/ main / main contrib non-free-firmware /; s/ main$/ main contrib non-free-firmware/' "$sl"
+    sed -i 's/ main / main contrib non-free non-free-firmware /; s/ main$/ main contrib non-free non-free-firmware/' "$sl"
     apt-get update
   fi
 }
+# ensure_nonfree also enables the 'non-free' component (proprietary GPU/wifi
+# firmware such as the NVIDIA driver) — keep this check in sync with sources.list.
+
 
 detect_hardware() {
   log "Hardware detection:"
@@ -81,7 +84,7 @@ install_audio() {
 install_printer() {
   ensure_nonfree_firmware
   log "Installing printing stack"
-  apt-get install -y cups printer-driver-all firmware-printer
+  apt-get install -y cups printer-driver-all printer-driver-gutenprint
 }
 
 install_firmware() {

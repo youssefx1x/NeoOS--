@@ -9,17 +9,19 @@ mesa-utils
 libgl1-mesa-dri
 mesa-vulkan-drivers
 vulkan-tools
-libva-mesa-driver
 mesa-va-drivers
+mesa-vdpau-drivers
 intel-media-va-driver
 
 # --- AMD / Radeon firmware ---
 firmware-amd-graphics
 
 # --- NVIDIA (proprietary) ---
+# NOTE: requires the 'non-free' apt component (enabled by neos-mirror /
+# sources.list). The metapackage 'nvidia-driver' pulls in the matching driver.
 nvidia-driver
 nvidia-settings
-firmware-nvidia
+firmware-nvidia-graphics
 
 # --- Generic Linux firmware ---
 firmware-linux
@@ -31,7 +33,6 @@ firmware-realtek
 firmware-atheros
 firmware-iwlwifi
 firmware-brcm80211
-firmware-bluetooth
 
 # --- Networking tools ---
 iw
