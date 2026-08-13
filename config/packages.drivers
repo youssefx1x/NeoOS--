@@ -34,7 +34,6 @@ firmware-brcm80211
 firmware-bluetooth
 
 # --- Networking tools ---
-wireless-tools
 iw
 rfkill
 wpasupplicant

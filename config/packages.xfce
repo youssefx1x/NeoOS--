@@ -7,7 +7,11 @@ xfce4-notifyd
 xfce4-power-manager
 thunar-archive-plugin
 gvfs-fuse
+gvfs-backends
+policykit-1
+xfce4-power-manager-plugins
 lightdm
 lightdm-gtk-greeter
 xfce4-whiskermenu-plugin
 xfce4-verve-plugin
+network-manager-gnome
