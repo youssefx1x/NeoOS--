@@ -110,7 +110,7 @@ EOF
   one neos-pkg      "NeoPkg 2.0: unified package manager"
   one neos-security "NeoSecurity: SUID/writable audit & package verification"
   one neos-agent    "NeoAgent: system agent (controlled capabilities)"
-  one neos-apps     "NeoApps: native application framework"
+   one neos-apps     "NeoApps: native application framework (list/run/install/search/update/uninstall/status)"
   one neos-store    "NeoStore: app/package store browser"
   one neos-shell    "NeoShell: list shells & launch default"
   one neos-desktop  "NeoDesktop: desktop session (xfce/wayland/gui)"

@@ -1,0 +1,7 @@
+# NeoOS native apps index — used by `neos-apps update` / `neos-apps install`.
+# Format: <app-name>\t<download-url>\t<short-description>
+# Lines starting with # are comments.
+hello	https://github.com/youssefx1x/NeoOS--/raw/main/config/neos-apps/hello/app.tar.gz	A minimal "Hello, World!" demo app for NeoApps
+neofetch-lite	https://github.com/youssefx1x/NeoOS--/raw/main/config/neos-apps/neofetch-lite/app.tar.gz	A tiny system-info banner (neofetch-style) written in pure bash
+calc-cli	https://github.com/youssefx1x/NeoOS--/raw/main/config/neos-apps/calc-cli/app.tar.gz	A terminal calculator with math functions (wraps python3/bc/awk)
+todo-cli	https://github.com/youssefx1x/NeoOS--/raw/main/config/neos-apps/todo-cli/app.tar.gz	A focused todo-list app with tags and priorities

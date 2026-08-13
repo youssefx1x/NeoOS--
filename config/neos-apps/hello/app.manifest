@@ -1,0 +1,6 @@
+NAME="hello"
+VERSION="1.0.0"
+DESCRIPTION="A minimal Hello World demo app for NeoApps"
+AUTHOR="NeoOS Project"
+ENTRY="hello"
+DEPENDS=""

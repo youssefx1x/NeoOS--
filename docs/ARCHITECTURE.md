@@ -61,7 +61,7 @@ is repaired, and the version is bumped to 1.1.1 throughout
 
 ### Start menu — `neos-menu` (`overlay/usr/bin/neos-menu`)
 
-A whiptail/dialog TUI with six sections:
+A whiptail/dialog TUI with seven sections:
 
 - **Code** — installs updated code apps: toolchains, editors, languages,
   debuggers (drives `apt`).
@@ -77,6 +77,9 @@ A whiptail/dialog TUI with six sections:
   `neos-calc`, `neos-fortune`.
 - **Dev** — `neos-new` (project scaffolds), `neos-lang` (language
   toolchains).
+- **Apps** — `neos-apps` native application framework: list, run, search,
+  install, uninstall, update, and check status of apps installed under
+  `/opt/neos-apps/`.
 - **Tools** — pkg manager, `neos-help`, `neos-distro`, `neos-update`,
   `neos-fetch`, `neos-ports`, `neos-where`, `neos-serve`,
   `neos-backup`, `pkg self-update`.

@@ -45,13 +45,24 @@ up_days=$(awk -v s="$uptime_s" 'BEGIN{printf "%dd %dh %dm", int(s/86400), int(s%
 
 top_procs() {
   local n=${1:-8}
+  local hz
+  hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
   for d in /proc/[0-9]*; do
     [[ -r "$d/stat" ]] || continue
-    read -r pid comm st rest < "$d/stat"
-    utime=$(echo "$rest" | awk '{print $12 + $13}')
-    printf "%s\t%s\t%s\n" "$utime" "${d##*/}" "$comm"
+    local raw pid rest comm utime
+    raw=$(<"$d/stat" 2>/dev/null) || continue
+    pid="${raw%% *}"
+    # /proc/[pid]/stat: "pid (comm with possible spaces) state rest..."
+    # Extract everything after the last ") " so field offsets are correct
+    # regardless of spaces in the process name.
+    rest="${raw##*) }"
+    comm="$(awk '{print $0}' "$d/comm" 2>/dev/null)" || comm="$pid"
+    # rest starts at "state ppid pgrp sess ... utime stime ..."
+    # state=field1, ppid=field2, ... utime=field12, stime=field13
+    utime=$(awk '{print $12 + $13}' <<< "$rest")
+    printf "%s\t%s\t%s\n" "$utime" "$pid" "$comm"
   done | sort -rn | head -n "$n" | while IFS=$'\t' read -r u pid comm; do
-    printf "  %-6s %-10s %s\n" "$pid" "$(awk -v u="$u" 'BEGIN{printf "%.1f%%", u/CLK_TCK/100}')" "${comm:0:30}"
+    printf "  %-6s %-10s %s\n" "$pid" "$(awk -v u="$u" -v h="$hz" 'BEGIN{printf "%.1f%%", u/h/100}')" "${comm:0:30}"
   done
 }
 

@@ -68,11 +68,17 @@ library.
   `neos-ip` (local + public IPs), `neos-speedtest`.
 - **Productivity section** — `neos-todo`, `neos-notes`, `neos-timer`
   (countdown/pomodoro), `neos-calc`, `neos-fortune`.
-- **Dev section** — `neos-new` (scaffolds bash/python/C/web/shlib
-  projects) and `neos-lang` (install/list language toolchains).
-- **User manager** (`neos-users`) — create multiple users with two
-  levels (normal / Administrator), delete/passwd/groups, plus a
-  disposable `guest` account with first-time auto-login on tty1.
+ - **Dev section** — `neos-new` (scaffolds bash/python/C/web/shlib
+   projects) and `neos-lang` (install/list language toolchains).
+ - **NeoApps section** — `neos-apps` native application framework:
+   list/run/search/install/uninstall/update/status. Apps live in
+   `/opt/neos-apps/<name>/` each with a `bin/` and an `app.manifest`.
+   `neos-apps update` refreshes the remote app index
+   (`config/neos-apps-index.tsv`); `neos-apps install <name>` downloads
+   and installs an app from the index or a local directory/URL.
+ - **User manager** (`neos-users`) — create multiple users with two
+   levels (normal / Administrator), delete/passwd/groups, plus a
+   disposable `guest` account with first-time auto-login on tty1.
 - **Wayland support** — `neos-wayland` starts a Weston compositor with
   XWayland; Wayland apps (foot, wmenu) are one menu click away.
 - **Winetricks / Wine** — `neos-winetricks` bootstraps Wine, initializes a
@@ -163,7 +169,7 @@ full list and `neos-help <tool>` for usage.
 | 4 | NeoSecurity | `neos-security` | Permissions, verification & system security |
 | 5 | NeoAI | `neos-ai` | Native AI assistant |
 | 6 | NeoAgent | `neos-agent` | AI system-agent with controlled capabilities |
-| 7 | NeoApps | `neos-apps` | Native application framework |
+| 7 | NeoApps | `neos-apps` | Native application framework (list/run/search/install/uninstall/update/status) |
 | 8 | NeoStore | `neos-store` | App/package store |
 | 9 | NeoShell | `neos-shell` | Modern command shell & launcher |
 | 10 | NeoDesktop | `neos-desktop` | NeoOS desktop environment |

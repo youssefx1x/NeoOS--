@@ -107,7 +107,83 @@ chmod +x "$STUB/neos-ai"
 out="$(PATH="$STUB:$PATH" "$NEOS" doctor --ai 2>&1 || true)"
 grep -q -E 'stub-ai|neos-ai is not installed|NeoPulse' <<< "$out" \
   && ok "neos doctor --ai runs (stub or fallback)" || bad "neos doctor --ai runs"
-rm -rf "$STUB"
+ rm -rf "$STUB"
+
+# ---- neos-apps: list / info / run / search / status ----
+APPS="./overlay/usr/bin/neos-apps"
+APPS_DIR="$(mktemp -d)"
+export NEOS_APPS_DIR="$APPS_DIR"
+mkdir -p "$APPS_DIR/hello/bin" "$APPS_DIR/calc/bin"
+# hello app with manifest
+cat > "$APPS_DIR/hello/app.manifest" <<'MF'
+NAME="hello"
+VERSION="1.0.0"
+DESCRIPTION="A minimal Hello World demo app"
+AUTHOR="NeoOS"
+ENTRY="hello"
+DEPENDS=""
+MF
+cat > "$APPS_DIR/hello/bin/hello" <<'BIN'
+#!/usr/bin/env bash
+echo "Hello, ${1:-World}!"
+BIN
+chmod +x "$APPS_DIR/hello/bin/hello"
+# calc app with manifest
+printf 'NAME="calc"\nVERSION="0.2.0"\nDESCRIPTION="Terminal calculator"\nAUTHOR="NeoOS"\nENTRY="calc"\nDEPENDS="bc"\n' > "$APPS_DIR/calc/app.manifest"
+cat > "$APPS_DIR/calc/bin/calc" <<'BIN'
+#!/usr/bin/env bash
+echo "42"
+BIN
+chmod +x "$APPS_DIR/calc/bin/calc"
+
+# list shows installed apps
+out="$("$APPS" list 2>&1)"
+grep -q 'hello' <<< "$out" && ok "neos-apps list shows hello" || bad "neos-apps list shows hello"
+grep -q 'calc' <<< "$out" && ok "neos-apps list shows calc" || bad "neos-apps list shows calc"
+
+# info shows manifest fields
+out="$("$APPS" info hello 2>&1)"
+grep -q 'VERSION\|version' <<< "$out" && ok "neos-apps info shows version" || bad "neos-apps info shows version"
+grep -q 'Hello World' <<< "$out" && ok "neos-apps info shows description" || bad "neos-apps info shows description"
+grep -q 'hello' <<< "$out" && ok "neos-apps info shows name" || bad "neos-apps info shows name"
+
+# info rejects unknown app
+out="$("$APPS" info nope 2>&1 || true)"
+grep -qi 'not found' <<< "$out" && ok "neos-apps info rejects unknown app" || bad "neos-apps info rejects unknown app"
+
+# run executes the app
+out="$("$APPS" run hello 2>&1)"
+grep -q 'Hello, World!' <<< "$out" && ok "neos-apps run hello works" || bad "neos-apps run hello works"
+
+# run passes args
+out="$("$APPS" run hello NeoOS 2>&1)"
+grep -q 'Hello, NeoOS!' <<< "$out" && ok "neos-apps run hello passes args" || bad "neos-apps run hello passes args"
+
+# search finds apps by keyword
+out="$("$APPS" search hello 2>&1)"
+grep -q 'hello' <<< "$out" && ok "neos-apps search finds hello" || bad "neos-apps search finds hello"
+out="$("$APPS" search calc 2>&1)"
+grep -q 'calc' <<< "$out" && ok "neos-apps search finds calc" || bad "neos-apps search finds calc"
+
+# search is case-insensitive
+out="$("$APPS" search HELLO 2>&1)"
+grep -q 'hello' <<< "$out" && ok "neos-apps search is case-insensitive" || bad "neos-apps search case-insensitive"
+
+# search with no match is graceful
+out="$("$APPS" search zzznomatch 2>&1)"
+grep -qi 'no apps' <<< "$out" && ok "neos-apps search no-match is graceful" || bad "neos-apps search no-match"
+
+# status works (no crash)
+out="$("$APPS" status 2>&1 || true)"
+grep -q 'hello' <<< "$out" && ok "neos-apps status lists apps" || bad "neos-apps status lists apps"
+
+# help prints usage
+out="$("$APPS" help 2>&1)"
+grep -q 'list' <<< "$out" && ok "neos-apps help documents list" || bad "neos-apps help documents list"
+grep -q 'install' <<< "$out" && ok "neos-apps help documents install" || bad "neos-apps help documents install"
+
+# cleanup
+rm -rf "$APPS_DIR"
 
 # ---- neos-start: settings registry + app discovery ----
 ns="./overlay/usr/bin/neos-start"

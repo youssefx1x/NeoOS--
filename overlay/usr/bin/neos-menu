@@ -78,6 +78,7 @@ main_menu() {
     "Network"   "Diagnostics, IP info, speed test" \
     "Productivity" "Todos, notes, timer, calculator, fortune" \
     "Dev"       "Project scaffolds + language toolchains" \
+    "Apps"      "NeoApps: install/run/search native apps" \
     "Tools"     "pkg manager, distro installer, backup, fetch, ports" \
     "System"    "System update, packages, shell, power" \
     "Quit"      "Exit to shell" 3>&1 1>&2 2>&3)
@@ -92,6 +93,7 @@ main_menu() {
     Network)  network_menu;;
     Productivity) productivity_menu;;
     Dev)      dev_menu;;
+    Apps)     apps_menu;;
     Tools)    tools_menu;;
     System)   system_menu;;
     Quit|"")  return 0;;
@@ -267,6 +269,34 @@ dev_menu() {
     "New project")  read -r -p "template + name (e.g. bash mytool): " a; safe_tokens neos-new <<<"$a" && neos-new "${SAFETOKENS[@]}" 2>&1 || true; pause;;
     "Languages")    neos-lang list 2>&1 || true; pause;;
     "Install lang") read -r -p "language (python|node|rust|go|java|ruby|php): " l; neos-lang install "$l" 2>&1 || true; pause;;
+    *) return 0;;
+  esac
+}
+
+apps_menu() {
+  local choice
+  choice=$(BOX "NeoOS - Apps" "NeoApps native application framework" 20 70 6 \
+    "List apps"    "neos-apps list — show installed apps" \
+    "Run an app"   "neos-apps run <app> [args]" \
+    "Search apps"  "neos-apps search <keyword>" \
+    "Install app"  "neos-apps install <name>" \
+    "Uninstall"    "neos-apps uninstall <app> (removes dir)" \
+    "Back" "Return to main menu" 3>&1 1>&2 2>&3)
+  case "$choice" in
+    "List apps")
+      neos-apps list 2>&1 || true; pause;;
+    "Run an app")
+      read -r -p "app name (e.g. hello): " a
+      neos-apps run "$a" 2>&1 || true; pause;;
+    "Search apps")
+      read -r -p "keyword: " a
+      neos-apps search "$a" 2>&1 || true; pause;;
+    "Install app")
+      read -r -p "app name (or name + src): " a; safe_tokens neos-apps <<<"$a"
+      neos-apps install "${SAFETOKENS[@]}" 2>&1 || true; pause;;
+    "Uninstall")
+      read -r -p "app name: " a
+      neos-apps uninstall "$a" 2>&1 || true; pause;;
     *) return 0;;
   esac
 }
