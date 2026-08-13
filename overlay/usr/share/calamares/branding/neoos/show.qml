@@ -16,7 +16,7 @@ Presentation
         Text {
             anchors.centerIn: parent
             horizontalAlignment: Text.AlignHCenter
-            text: "NeoOS 1.1.1 Stable\n\nInstall NeoOS — a Debian 13 (trixie) terminal distribution\n\nCode · Internet · Drivers · Wayland · Wine · Tools"
+            text: "NeoOS 1.1.1 Final release\n\nInstall NeoOS — a Debian 13 (trixie) terminal distribution\n\nCode · Internet · Drivers · Wayland · Wine · Tools"
             color: "#e6edf3"
             font.pointSize: 20
             font.family: "monospace"

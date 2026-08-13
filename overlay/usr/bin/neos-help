@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-BANNER='NeoOS 1.1.1 Stable — terminal-first Debian 13 distribution'
+BANNER='NeoOS 1.1.1 Final release — terminal-first Debian 13 distribution'
 
 one() {
   local cmd="$1" line="$2"

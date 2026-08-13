@@ -55,7 +55,7 @@ cp "$NEOS_ROOTFS"/boot/initrd.img-* "$ISODIR/boot/initrd.img"
 cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
 set timeout=5
 set default=0
-menuentry "NeoOS 1.1.1 Stable (Debian 13 trixie) — Live Terminal" {
+menuentry "NeoOS 1.1.1 Final release (Debian 13 trixie) — Live Terminal" {
   linux /boot/vmlinuz boot=live quiet toram components
   initrd /boot/initrd.img
 }

@@ -1,6 +1,6 @@
 # NeoOS
 
-A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.1 Stable**, the fully apt-updated, stable release.
+A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.1 Final release**, the fully apt-updated, stable release.
 
 NeoOS is a minimal, terminal-only operating system focused on development,
 networking and tinkering. It ships a **terminal start menu** (code
@@ -10,7 +10,7 @@ for installing and switching between multiple versions of the same shared
 library.
 
 ```
-      NeoOS 1.1.1 Stable — Debian 13 (trixie) terminal distribution
+      NeoOS 1.1.1 Final release — Debian 13 (trixie) terminal distribution
       ┌─────────────────────────────────────────────────┐
       │  Code        updated code apps + toolchains     │
       │  Internet    browsers, messaging, Google Drive  │
@@ -116,7 +116,7 @@ library.
   natural-scroll tuning
    (`overlay/etc/X11/xorg.conf.d/40-libinput-touch.conf`), and lightdm auto-login.
 
-## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Stable — NeoOS 1.1.1)
+## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Final release — NeoOS 1.1.1)
 
 NeoOS 1.1.1 ships three new, stable pieces that sit cleanly on top of the
 existing `neos-*` tools and `pkg`:

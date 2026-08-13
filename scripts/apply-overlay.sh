@@ -93,12 +93,12 @@ chmod 0755 "$ROOTFS/etc/network/if-up.d/neos-uranium-suggest" 2>/dev/null || tru
 
 # 3. os-release branding
 cat > "$ROOTFS/etc/os-release" <<'EOF'
-PRETTY_NAME="NeoOS 1.1.1 Stable (Debian 13 trixie based)"
+PRETTY_NAME="NeoOS 1.1.1 Final release (Debian 13 trixie based)"
 NAME="NeoOS"
 ID=neoos
 ID_LIKE=debian
 VERSION_ID="1.1.1"
-VERSION="1.1.1 Stable"
+VERSION="1.1.1 Final release"
 VERSION_CODENAME=trixie
 HOME_URL="https://neoos.local"
 SUPPORT_URL="https://neoos.local/support"
@@ -112,7 +112,7 @@ touch "$ROOTFS/etc/hostname"
 # 5. motd
 cat > "$ROOTFS/etc/motd" <<'EOF'
 
-  NeoOS 1.1.1 Stable — a Debian 13 terminal distribution
+  NeoOS 1.1.1 Final release — a Debian 13 terminal distribution
 
   Unified CLI ........ neo        (NeoCore + NeoPkg 2.0 + neos-*)
   Start menu ........ neos-menu
