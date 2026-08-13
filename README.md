@@ -13,7 +13,7 @@ library.
       NeoOS 1.1.1 Stable — Debian 13 (trixie) terminal distribution
       ┌─────────────────────────────────────────────────┐
       │  Code        updated code apps + toolchains     │
-      │  Internet    browsers, messaging, network utils │
+      │  Internet    browsers, messaging, Google Drive  │
       │  Drivers     hardware / driver installer        │
       │  Wayland     Weston + XWayland session          │
       │  Wine        Windows apps (neos-wine + VM)      │
@@ -41,8 +41,9 @@ library.
   VMs": self-contained prefixes that install and run Windows applications
   without touching the base system (a Bottles/PlayOnLinux-style CLI).
 - **Driver installer** (`neos-drivers`) — hardware detection (lspci/lsusb),
-  enables `non-free-firmware`, installs GPU (Mesa/Vulkan/AMD/NVIDIA),
-  WiFi, Bluetooth, audio, printer and generic firmware.
+  enables the `non-free` and `non-free-firmware` apt components, installs GPU
+  (Mesa/Vulkan/AMD/NVIDIA), WiFi, Bluetooth, audio, printer and generic
+  firmware.
 - **pkg** (`pkg`) — Termux-style package manager wrapper over apt/dpkg:
   `pkg update`, `pkg upgrade`, `pkg install`, `pkg search`, `pkg list`,
   `pkg files`, `pkg depends`, `pkg autoremove`, `pkg clean` and
@@ -54,6 +55,11 @@ library.
   installer that writes NeoOS to disk from the live media. Ships NeoOS
   branding + a Debian-compatible install sequence; pulls the GUI stack in
   on demand so the base system stays lean.
+- **Google Drive cloud** (`neos-cloud`) — full rclone-based Google Drive
+  client: `login` (device-code OAuth), `status`, `list`, `upload`,
+  `download`, `sync`, `backup`, `quota` and `test`. Reached from the
+  Internet section of the start menu; every tool is real (rclone),
+  no stubs.
 - **Utility toolkit** — `neos-update` (plan-first updater),
   `neos-fetch` (neofetch-style banner), `neos-help` (lists every NeoOS
   command, with full usage per tool), `neos-ports` (listening
@@ -105,8 +111,9 @@ library.
 - **One-click OTA** — `neos-update --ota` checks and `--ota-apply` downloads +
   installs a signed distribution delta from `NEOS_OTA_URL` (GPG-verified when
   `NEOS_OTA_KEY` is set to a keyring path).
-- **Dark Windows-like desktop** — XFCE with Arc-Dark/Papirus-Dark, a bottom
-  Whisker start menu, libinput tap-to-click + natural-scroll tuning
+- **Dark Windows-like desktop** — XFCE with the modern Blackbird dark theme
+  and Papirus-Dark icons, a bottom Whisker start menu, libinput tap-to-click +
+  natural-scroll tuning
    (`overlay/etc/X11/xorg.conf.d/40-libinput-touch.conf`), and lightdm auto-login.
 
 ## NeoCore, NeoPkg 2.0 & the `neo` CLI  (Stable — NeoOS 1.1.1)
@@ -203,7 +210,7 @@ full list and `neos-help <tool>` for usage.
 | 38 | NeoSDK | `neos-sdk` | Developer SDK for NeoOS apps |
 | 39 | NeoRepo | `neos-repo` | Official package repository infrastructure |
 | 40 | NeoModel | `neos-model` | Local AI model management |
-| 41 | NeoCloud | `neos-cloud` | Sync files, settings, and backups (Google Drive / WebDAV) |
+| 41 | NeoCloud | `neos-cloud` | Google Drive client (rclone): login/status/list/upload/download/sync/backup/quota/test |
 | 42 | NeoTheme | `neos-theme` | Manage themes, icons, and fonts |
 | 43 | NeoNetwork | `neos-net` | Network management & diagnostics |
 | 44 | NeoSandbox | `neos-sandbox` | Isolate apps and risky processes |
@@ -291,8 +298,10 @@ Notes:
 ## Project layout
 
 ```
-config/              package lists and sources.list (trixie): packages.base,
-                    packages.xfce, packages.drivers, packages.calamares, ...
+config/              package lists and sources.list (trixie, main/contrib/
+                    non-free/non-free-firmware): packages.base, packages.xfce,
+                    packages.drivers, packages.internet, packages.wayland,
+                    packages.calamares, ...
 scripts/             build drivers: rootfs, ISO, proot, overlay, chroot
                     setup, and run-neoos-qemu.sh (Termux QEMU launcher)
 overlay/             files injected into the rootfs
@@ -311,6 +320,7 @@ overlay/             files injected into the rootfs
   usr/bin/neos-where     which package owns a command/file
   usr/bin/neos-serve     HTTP file share (with upload)
   usr/bin/neos-backup    config + package-list backup/restore
+  usr/bin/neos-cloud     Google Drive client (rclone)
   usr/bin/neos-installer graphical Calamares installer launcher
   usr/bin/neos-users     user manager (normal/admin levels, guest autologin)
   usr/bin/neos-guest     guest-account front-end (neos-users guest ...)
@@ -602,8 +612,16 @@ reachable (see `scripts/build-proot.sh`).
 ## Testing
 
 ```sh
-bash tests/test-neolibs.sh
+make test                 # runs all suites
+bash tests/test-neos.sh   # 71 tests: tools, menu, packages, drivers, IPC/plugins
+bash tests/test-neolibs.sh # 10 tests: NeoLIBs core + integration
 ```
+
+`tests/test-neos.sh` covers the terminal menu, every `neos-*` tool (help,
+exit codes, `--help`, exec bits, PATH-independent sibling resolution),
+package/apt source integrity (trixie, `non-free` + `non-free-firmware`)
+and the IPC/plugin/plugin-security tools; `tests/test-neolibs.sh` covers
+the NeoLIBs native core and `neolibs` CLI.
 
 ## Requirements for building
 
