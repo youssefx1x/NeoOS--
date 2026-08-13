@@ -138,6 +138,7 @@ internet_menu() {
     "Install network"   "nmap, dnsutils, whois, netcat, traceroute" \
     "Install messaging" "weechat, irssi terminal IRC" \
     "Configure network" "ip, ping, ethtool, network setup" \
+    "Google Drive"      "neos-cloud: sync files to your 15 GB Drive" \
     "Back" "Return to main menu" 3>&1 1>&2 2>&3)
   case "$choice" in
     "Install browsers") run_as_root apt install -y lynx w3m links elinks || pause;;
@@ -145,6 +146,7 @@ internet_menu() {
     "Install network")  run_as_root apt install -y nmap dnsutils whois netcat-openbsd traceroute || pause;;
     "Install messaging")run_as_root apt install -y weechat irssi || pause;;
     "Configure network") run_as_root sh -c 'dhclient -v; ip addr; ip route' 2>/dev/null || true; pause;;
+    "Google Drive") neos-cloud login 2>&1 || pause; neos-cloud status 2>&1 || pause;;
     *) return 0;;
   esac
   pause
