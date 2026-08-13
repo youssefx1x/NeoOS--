@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # neos-brightness — screen backlight control (status/up/down/set)
 set -euo pipefail
+case "${1:-}" in
+  -h|--help) sed -n '2p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+esac
 bd="$(find /sys/class/backlight -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -n1)"
 if [[ -z "${bd:-}" ]]; then
   echo "neos-brightness: no backlight device found" >&2

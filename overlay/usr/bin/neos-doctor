@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # neos-doctor — NeoDoctor: automatic system diagnostics & self-repair
 set -euo pipefail
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+resolve() { command -v "$1" 2>/dev/null || echo "$SELF_DIR/$1"; }
+
 fix=0; [[ "${1:-}" == "--fix" ]] && fix=1
 echo "=== neos-doctor ==="
-neos-health >/dev/null 2>&1 && echo "health: OK" || echo "health: review 'neos-health'"
+"$(resolve neos-health)" >/dev/null 2>&1 && echo "health: OK" || echo "health: review 'neos-health'"
 if command -v dpkg >/dev/null 2>&1; then
   held="$(dpkg --get-selections 2>/dev/null | awk '$2=="hold"{print $1}')"
   [[ -n "$held" ]] && echo "held packages: $held" || true

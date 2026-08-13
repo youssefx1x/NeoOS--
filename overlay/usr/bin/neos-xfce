@@ -3,6 +3,14 @@
 set -euo pipefail
 mode="${1:-start}"
 
+case "$mode" in
+  -h|--help|help)
+    sed -n '2p' "$0" | sed 's/^#   /  /; s/^#//'
+    echo "  neos-xfce [start|bottom|theme|apply|off]   (default: start the session)"
+    exit 0
+    ;;
+esac
+
 ensure_x() {
   if [[ -z "${DISPLAY:-}" ]]; then
     if command -v vncserver >/dev/null 2>&1; then

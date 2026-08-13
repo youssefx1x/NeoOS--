@@ -4,6 +4,15 @@
 
 set -euo pipefail
 
+case "${1:-}" in
+  -h|--help|help)
+    sed -n '2,3p' "$0" | sed 's/^# //; s/^#//'
+    echo "  neos-menu            open the interactive start menu (whiptail/dialog)"
+    echo "  neos-menu --help     this help"
+    exit 0
+    ;;
+esac
+
 # Whiptail is lighter than dialog; fall back to dialog if needed.
 if command -v whiptail >/dev/null 2>&1; then
   MENU="whiptail"

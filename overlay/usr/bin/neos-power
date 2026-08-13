@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # neos-power — NeoPower: power/battery profiling & status
 set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+resolve() { command -v "$1" 2>/dev/null || echo "$SELF_DIR/$1"; }
+
 case "${1:-status}" in
-  status) neos-battery ;;
+  status) "$(resolve neos-battery)" ;;
   profile)
     case "${2:-balanced}" in
       performance) echo "cpu governor: performance" ;;

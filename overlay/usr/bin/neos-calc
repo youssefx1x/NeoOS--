@@ -56,6 +56,9 @@ except Exception as e:
 }
 
 if [[ $# -ge 1 ]]; then
+  case "$1" in
+    -h|--help|help) sed -n '2,8p' "$0" | sed 's/^#   /  /; s/^#//'; exit 0 ;;
+  esac
   calc "$*"
 else
   echo "neos-calc (${ENGINE} engine) — type an expression, Ctrl-D to exit."

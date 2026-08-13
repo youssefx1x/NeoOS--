@@ -10,6 +10,9 @@
 
 set -euo pipefail
 
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+resolve() { command -v "$1" 2>/dev/null || echo "$SELF_DIR/$1"; }
+
 run() { echo -e "\033[1;36m== $1 ==\033[0m"; shift; "$@" 2>&1 || echo "  (unavailable)"; }
 
 interfaces() {
@@ -58,7 +61,7 @@ case "${1:-}" in
   gateway) gateway ;;
   dns)    dns ;;
   ping)   ping_test "${2:-1.1.1.1}" ;;
-  speed)  neos-speedtest ;;
+  speed)  "$(resolve neos-speedtest)" ;;
   whoami) whoami ;;
   -h|--help) sed -n '2,10p' "$0" | sed 's/^#   /  /; s/^#//' ;;
   *) echo "neos-net: unknown option '$1'"; exit 1 ;;

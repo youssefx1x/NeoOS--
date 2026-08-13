@@ -193,7 +193,7 @@ neocore_procs() {
   local n="${1:-10}"
   echo "top $n processes by CPU:"
   ps -eo pid,ppid,user,%cpu,%mem,rss,comm --sort=-%cpu 2>/dev/null | head -n $((n+1)) \
-    | awk 'NR==1{print} NR>1{printf "  %-7s %-8s %-7s %5s%% %5s%%  %s\n",$1,$3,$4,$5,$6,$7}'
+    | awk 'NR==1{print} NR>1{printf "  %-7s %-8s %-7s %5s%% %8s KB  %s\n",$1,$3,$4,$5,$6,$7}'
   echo
   echo "top $n processes by memory:"
   ps -eo pid,user,%mem,rss,comm --sort=-%mem 2>/dev/null | head -n $((n+1)) \

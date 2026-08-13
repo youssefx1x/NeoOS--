@@ -182,6 +182,54 @@ out="$("$APPS" help 2>&1)"
 grep -q 'list' <<< "$out" && ok "neos-apps help documents list" || bad "neos-apps help documents list"
 grep -q 'install' <<< "$out" && ok "neos-apps help documents install" || bad "neos-apps help documents install"
 
+# ---- regression: every tool in overlay/usr/bin is executable ----
+missing_x=0
+for f in overlay/usr/bin/neos-* overlay/usr/bin/neo overlay/usr/bin/pkg; do
+  [[ -x "$f" ]] || { missing_x=1; echo "    not executable: $f"; }
+done
+[[ $missing_x -eq 0 ]] && ok "all tools are executable" || bad "all tools are executable"
+
+# ---- regression: neos-todo add stores text without the 'add' word ----
+todo_home="$(mktemp -d)"
+HOME="$todo_home" "./overlay/usr/bin/neos-todo" add "buy milk" >/dev/null 2>&1 || true
+grep -q "^o$(printf '\t')buy milk$" "$todo_home/.neos/todo.txt" \
+  && ok "neos-todo add stores clean text" || bad "neos-todo add stores clean text"
+rm -rf "$todo_home"
+
+# ---- regression: neos-serve --port prints a free port ----
+if command -v python3 >/dev/null 2>&1; then
+  out="$(./overlay/usr/bin/neos-serve --port 2>&1 || true)"
+  [[ "$out" =~ ^[0-9]+$ ]] && ok "neos-serve --port prints a port" || bad "neos-serve --port prints a port"
+fi
+
+# ---- regression: neo system procs aligns RSS as KB (not %) ----
+if command -v ps >/dev/null 2>&1; then
+  out="$("./overlay/usr/bin/neo" system procs 2 2>&1 || true)"
+  grep -q 'KB' <<< "$out" && ok "neo system procs shows RSS in KB" || bad "neo system procs shows RSS in KB"
+fi
+
+# ---- regression: neos-help --all succeeds ----
+out="$(./overlay/usr/bin/neos-help --all 2>&1 || true)"
+grep -q 'neos-apps' <<< "$out" && ok "neos-help --all lists neos-apps" || bad "neos-help --all lists neos-apps"
+
+# ---- regression: thin wrappers resolve siblings (desktop/power/recovery) ----
+out="$(./overlay/usr/bin/neos-desktop badcmd 2>&1 || true)"
+grep -q 'usage: neos-desktop' <<< "$out" && ok "neos-desktop prints usage" || bad "neos-desktop prints usage"
+out="$(./overlay/usr/bin/neos-power badcmd 2>&1 || true)"
+grep -q 'usage: neos-power' <<< "$out" && ok "neos-power prints usage" || bad "neos-power prints usage"
+out="$(./overlay/usr/bin/neos-recovery badcmd 2>&1 || true)"
+grep -q 'usage: neos-recovery' <<< "$out" && ok "neos-recovery prints usage" || bad "neos-recovery prints usage"
+
+# ---- regression: neos-menu --help works without whiptail ----
+out="$(./overlay/usr/bin/neos-menu --help 2>&1 || true)"
+grep -q 'neos-menu' <<< "$out" && ok "neos-menu --help prints help" || bad "neos-menu --help prints help"
+
+# ---- regression: neos-calc --help shows usage ----
+if command -v python3 >/dev/null 2>&1; then
+  out="$(./overlay/usr/bin/neos-calc --help 2>&1 || true)"
+  grep -q 'neos-calc' <<< "$out" && ok "neos-calc --help prints usage" || bad "neos-calc --help prints usage"
+fi
+
 # cleanup
 rm -rf "$APPS_DIR"
 

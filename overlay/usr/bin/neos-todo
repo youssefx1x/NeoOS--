@@ -54,7 +54,8 @@ set_state() {
 case "${1:-}" in
   ""|list) list ;;
   add)
-    [[ -n "${2:-}" ]] || { echo "usage: neos-todo add \"text\""; exit 1; }
+    shift || true
+    [[ -n "${1:-}" ]] || { echo "usage: neos-todo add \"text\""; exit 1; }
     printf 'o\t%s\n' "$*" >> "$FILE"
     echo "Added: $*"; list
     ;;

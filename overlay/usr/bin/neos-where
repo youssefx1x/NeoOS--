@@ -39,6 +39,10 @@ if [[ -e "$target" || "$(command -v "${target#*/}" 2>/dev/null)" ]]; then
   if [[ -e "$path" ]]; then
     log "file: $path"
     dpkg -S "$path" 2>/dev/null && exit 0 || true
+    # usrmerge: /usr/bin/foo is the same file dpkg tracks as /bin/foo
+    if [[ "$path" == /usr/* ]]; then
+      dpkg -S "${path#/usr}" 2>/dev/null && exit 0 || true
+    fi
   fi
 fi
 
