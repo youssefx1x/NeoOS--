@@ -138,7 +138,7 @@ EOF
   one neos-sdk      "NeoSDK: NeoAPI SDK env & headers"
   one neos-repo     "NeoRepo: package repository sources"
   one neos-model    "NeoModel: local AI model management"
-  one neos-cloud    "NeoCloud: sync files, settings & backups"
+  one neos-cloud    "NeoCloud: Google Drive cloud sync (terminal OAuth, free 15 GB)"
   one neos-ipc      "NeoIPC: inter-component communication endpoints"
   one neos-event    "NeoEvent: system-wide event bus"
   one neos-plugins  "NeoPlugins: plugin management"

@@ -255,6 +255,22 @@ HOME="$GUITMP" "$ng" select openbox >/dev/null 2>&1 || true
 grep -q 'exec openbox' "$GUITMP/.xsession" 2>/dev/null && ok "neos-gui select writes xsession" || bad "neos-gui select writes xsession"
 rm -rf "$GUITMP"
 
+# ---- neos-cloud: Google Drive helper ----
+nc="./overlay/usr/bin/neos-cloud"
+out="$("$nc" --help 2>&1)"
+for cmd in login list upload download sync backup quota; do
+  grep -q "$cmd" <<< "$out" && ok "neos-cloud help documents $cmd" || bad "neos-cloud help documents $cmd"
+done
+# unknown command rejected
+out="$("$nc" bogus 2>&1 || true)"
+grep -q 'unknown command' <<< "$out" && ok "neos-cloud rejects unknown command" || bad "neos-cloud rejects unknown command"
+# upload requires an argument
+out="$("$nc" upload 2>&1 || true)"
+grep -q 'usage: neos-cloud upload' <<< "$out" && ok "neos-cloud upload requires args" || bad "neos-cloud upload requires args"
+# not-linked commands are graceful without rclone (or without a linked remote)
+out="$("$nc" list 2>&1 || true)"
+grep -qi 'neos-cloud login' <<< "$out" && ok "neos-cloud list graceful when unlinked" || bad "neos-cloud list graceful when unlinked"
+
 echo
 printf 'neos suite: %d passed, %d failed\n' "$pass" "$fail"
 (( fail == 0 )) || exit 1
