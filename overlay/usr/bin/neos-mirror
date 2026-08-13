@@ -37,7 +37,7 @@ case "${1:-status}" in
   apply)
     need_root "$@"
     log "writing $OVERLAY -> $MIRROR ($SUITE)"
-    printf 'deb %s %s main contrib non-free-firmware\n' "$MIRROR" "$SUITE" > "$OVERLAY"
+    printf 'deb %s %s main contrib non-free non-free-firmware\n' "$MIRROR" "$SUITE" > "$OVERLAY"
     do_update
     ;;
   revert)
