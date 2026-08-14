@@ -66,10 +66,10 @@ menuentry "NeoOS — Safe Mode (nomodeset)" {
 EOF
 
 log "Building ISO: $NEOS_ISO"
-grub-mkrescue -o "$NEOS_ISO" "$ISODIR" -- \
-  --boot-info-table \
-  --iso-level 3 \
-  --volid "NeoOS" 2>/dev/null || grub-mkrescue -o "$NEOS_ISO" "$ISODIR"
+# grub-mkrescue embeds the boot image automatically; -V sets the ISO 9660
+# volume ID. Avoid forwarding raw xorriso/mkisofs options (fragile across
+# xorriso versions); a simple invocation is robust on every grub-common build.
+grub-mkrescue -o "$NEOS_ISO" -V "NeoOS" "$ISODIR"
 
 ls -lh "$NEOS_ISO"
 log "ISO ready. Test with: qemu-system-x86_64 -cdrom $NEOS_ISO -m 2G"
