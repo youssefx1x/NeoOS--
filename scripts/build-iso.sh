@@ -27,9 +27,20 @@ require xorriso xorriso
 # Make sure the rootfs has a kernel + live-boot + grub layer. If not, run
 # setup-iso.sh inside the rootfs via chroot (build-helper). NEOS_INCLUDE_INSTALLER
 # is passed through to optionally embed the Calamares installer.
+# Run setup-iso.sh whenever the kernel+live-boot layer is missing, OR when the
+# Calamares installer has been requested but is not yet installed in the rootfs.
+NEEDS_ISO_SETUP=0
 if ! compgen -G "$NEOS_ROOTFS/boot/vmlinuz-*" >/dev/null; then
+  NEEDS_ISO_SETUP=1
+fi
+if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]] && \
+   [[ ! -x "$NEOS_ROOTFS/usr/bin/calamares" ]] && \
+   [[ ! -e "$NEOS_ROOTFS/usr/bin/calamares" ]]; then
+  NEEDS_ISO_SETUP=1
+fi
+if [[ "$NEEDS_ISO_SETUP" -eq 1 ]]; then
   if [[ -x "$REPO_ROOT/scripts/chroot-run.sh" ]] && [[ -f "$REPO_ROOT/scripts/setup-iso.sh" ]]; then
-    log "Preparing ISO rootfs (kernel/live-boot/grub) via chroot"
+    log "Preparing ISO rootfs (kernel/live-boot/grub, optionally Calamares) via chroot"
     cp "$REPO_ROOT/scripts/setup-iso.sh" "$NEOS_ROOTFS/tmp/setup-iso.sh"
     chmod +x "$NEOS_ROOTFS/tmp/setup-iso.sh"
     "$REPO_ROOT/scripts/chroot-run.sh" "$NEOS_ROOTFS" /tmp/setup-iso.sh
