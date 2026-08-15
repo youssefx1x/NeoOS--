@@ -4,11 +4,16 @@ set -euo pipefail
 # build-iso.sh — create a bootable NeoOS live ISO from a rootfs.
 # Uses grub-mkrescue + squashfs. Requires the rootfs to already contain
 # a kernel, initramfs and grub config (see setup-iso.sh, run via chroot).
+#
+# In environments without chroot (e.g. PRoot), set NEOS_KERNEL_SRC and
+# NEOS_INITRD_SRC to external kernel/initrd paths to use them.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NEOS_ROOTFS="${NEOS_ROOTFS:-$REPO_ROOT/build/rootfs}"
 NEOS_ISO="${NEOS_ISO:-$REPO_ROOT/build/neoos.iso}"
 NEOS_ARCH="${NEOS_ARCH:-amd64}"
+NEOS_KERNEL_SRC="${NEOS_KERNEL_SRC:-}"
+NEOS_INITRD_SRC="${NEOS_INITRD_SRC:-}"
 
 log() { printf '\033[1;36m[neos-iso]\033[0m %s\n' "$*"; }
 
@@ -25,10 +30,8 @@ require grub-mkrescue grub2-common
 require xorriso xorriso
 
 # Make sure the rootfs has a kernel + live-boot + grub layer. If not, run
-# setup-iso.sh inside the rootfs via chroot (build-helper). NEOS_INCLUDE_INSTALLER
-# is passed through to optionally embed the Calamares installer.
-# Run setup-iso.sh whenever the kernel+live-boot layer is missing, OR when the
-# Calamares installer has been requested but is not yet installed in the rootfs.
+# setup-iso.sh inside the rootfs via chroot (build-helper), unless external
+# kernel sources are provided (for environments without chroot).
 NEEDS_ISO_SETUP=0
 if ! compgen -G "$NEOS_ROOTFS/boot/vmlinuz-*" >/dev/null; then
   NEEDS_ISO_SETUP=1
@@ -39,15 +42,22 @@ if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]] && \
   NEEDS_ISO_SETUP=1
 fi
 if [[ "$NEEDS_ISO_SETUP" -eq 1 ]]; then
-  if [[ -x "$REPO_ROOT/scripts/chroot-run.sh" ]] && [[ -f "$REPO_ROOT/scripts/setup-iso.sh" ]]; then
+  if [[ -n "$NEOS_KERNEL_SRC" && -n "$NEOS_INITRD_SRC" ]]; then
+    log "Using external kernel+initrd (no chroot needed)"
+    ISO_KERNEL="$NEOS_KERNEL_SRC"
+    ISO_INITRD="$NEOS_INITRD_SRC"
+  elif [[ -x "$REPO_ROOT/scripts/chroot-run.sh" ]] && [[ -f "$REPO_ROOT/scripts/setup-iso.sh" ]]; then
     log "Preparing ISO rootfs (kernel/live-boot/grub, optionally Calamares) via chroot"
     cp "$REPO_ROOT/scripts/setup-iso.sh" "$NEOS_ROOTFS/tmp/setup-iso.sh"
     chmod +x "$NEOS_ROOTFS/tmp/setup-iso.sh"
     "$REPO_ROOT/scripts/chroot-run.sh" "$NEOS_ROOTFS" /tmp/setup-iso.sh
     rm -f "$NEOS_ROOTFS/tmp/setup-iso.sh"
+    ISO_KERNEL="$NEOS_ROOTFS/boot/vmlinuz-$(uname -r)"
+    ISO_INITRD="$NEOS_ROOTFS/boot/initrd.img-$(uname -r)"
   else
     echo "rootfs does not contain a kernel yet: $NEOS_ROOTFS" >&2
-    echo "run scripts/setup-iso.sh inside the rootfs (see scripts/chroot-run.sh)" >&2
+    echo "Either run scripts/setup-iso.sh inside the rootfs via chroot," >&2
+    echo "or provide NEOS_KERNEL_SRC and NEOS_INITRD_SRC for external kernel." >&2
     exit 1
   fi
 fi
@@ -60,8 +70,13 @@ log "Creating squashfs from rootfs"
 mksquashfs "$NEOS_ROOTFS" "$ISODIR/live/filesystem.squashfs" -comp zstd -Xcompression-level 3 -noappend
 
 log "Copying kernel + initramfs"
-cp "$NEOS_ROOTFS"/boot/vmlinuz-* "$ISODIR/boot/vmlinuz"
-cp "$NEOS_ROOTFS"/boot/initrd.img-* "$ISODIR/boot/initrd.img"
+if [[ -n "${ISO_KERNEL:-}" ]]; then
+  cp "$ISO_KERNEL" "$ISODIR/boot/vmlinuz"
+  cp "$ISO_INITRD" "$ISODIR/boot/initrd.img"
+else
+  cp "$NEOS_ROOTFS"/boot/vmlinuz-* "$ISODIR/boot/vmlinuz"
+  cp "$NEOS_ROOTFS"/boot/initrd.img-* "$ISODIR/boot/initrd.img"
+fi
 
 cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
 set timeout=5
