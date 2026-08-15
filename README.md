@@ -1,6 +1,8 @@
 # NeoOS
 
-A terminal-first Linux distribution built on **Debian 13 (trixie)**. This is **NeoOS 1.1.1 Final release**, the fully apt-updated, stable release.
+A terminal-first Linux distribution built on **Neokit 1.0 base layer** (Debian 13
+trixie). This is **NeoOS 1.1.1 Final release**, the fully apt-updated, stable
+release.
 
 NeoOS is a minimal, terminal-only operating system focused on development,
 networking and tinkering. It ships a **terminal start menu** (code
@@ -8,6 +10,20 @@ applications, internet tools, driver installer), a **Wayland + Winetricks**
 stack for running GUI apps when you want them, and **NeoLIBs** — a new tool
 for installing and switching between multiple versions of the same shared
 library.
+
+The distro is built in **two layers**:
+
+1. **Neokit 1.0 base** — a custom Debian 13 (trixie) rootfs with lightweight
+   core packages and Neokit branding (`base/neokit/`). Identify with
+   `os-release` showing "Neokit 1.0 (Debian 13 Trixie Base)".
+2. **NeoOS overlay** — the full NeoOS package set, tools and configuration
+   (`overlay/`), layered on top of Neokit. The final rootfs identifies as
+   "NeoOS 1.1.1 Final release".
+
+```sh
+  Neokit 1.0 base   →   NeoOS 1.1.1 Final release (overlay)
+  (Debian trixie)       (terminal-first distro)
+
 
 ```
       NeoOS 1.1.1 Final release — Debian 13 (trixie) terminal distribution
@@ -235,7 +251,10 @@ full list and `neos-help <tool>` for usage.
 ## Quick start
 
 ```sh
-# Build the root filesystem (Debian 13 trixie)
+# Build the Neokit 1.0 base layer only
+make neokit-base              # produces build/neokit-base/neokit-1.0-base.tar.gz
+
+# Build NeoOS rootfs on top of Neokit base
 ./build.sh rootfs
 
 # Build a bootable live ISO (needs root; auto-chroots to add kernel/grub)
@@ -246,6 +265,9 @@ full list and `neos-help <tool>` for usage.
 
 # All of the above
 ./build.sh all
+
+# Build everything starting from Neokit base
+make neokit-all               # neokit-base + rootfs + iso + proot
 
 # Clean build artifacts
 ./build.sh clean
@@ -298,12 +320,17 @@ Notes:
 ## Project layout
 
 ```
+base/                    Neokit base layer (separate from overlay)
+  neokit/
+    packages.base        lightweight package list for Neokit 1.0
+    overlay/             Neokit branding + base config (os-release, issue)
 config/              package lists and sources.list (trixie, main/contrib/
                     non-free/non-free-firmware): packages.base, packages.xfce,
                     packages.drivers, packages.internet, packages.wayland,
                     packages.calamares, ...
 scripts/             build drivers: rootfs, ISO, proot, overlay, chroot
                     setup, and run-neoos-qemu.sh (Termux QEMU launcher)
+                    build-neokit-base.sh   Neokit 1.0 base layer builder
 overlay/             files injected into the rootfs
   usr/bin/neos-menu      terminal start menu
   usr/bin/neos-uranium   one-tap driver installer (NeoOS Uranium)
@@ -625,14 +652,19 @@ the NeoLIBs native core and `neolibs` CLI.
 
 ## Requirements for building
 
-- A Debian/Ubuntu host (Debian 12 used for development)
+- A Debian/Ubuntu host (Debian 13 trixie used for development)
 - `mmdebstrap`, `xorriso`, `grub-mkrescue` (installed automatically if you
   run the build as root)
 - Network access to `deb.debian.org`
 - The ISO build additionally needs `chroot` + root to install the kernel
 
+In environments where `mmdebstrap` cannot mount (PRoot, limited
+containers), set `NEOKIT_SKIP_BOOTSTRAP=1` and `NEOKIT_BASE_SRC=/` to
+seed the Neokit base from an existing rootfs instead of bootstrapping fresh.
+
 ## Roadmap
 
+- [x] Neokit 1.0 base layer (separate Debian 13 trixie rootfs + branding)
 - [x] trixie rootfs + overlay
 - [x] NeoLIBs multi-version library manager
 - [x] Terminal start menu (code / internet / drivers / wayland / wine / system)
