@@ -1,0 +1,6 @@
+NAME="neofetch-lite"
+VERSION="1.0.0"
+DESCRIPTION="A tiny system-info banner (neofetch-style) written in pure bash"
+AUTHOR="NeoOS Project"
+ENTRY="neofetch-lite"
+DEPENDS=""

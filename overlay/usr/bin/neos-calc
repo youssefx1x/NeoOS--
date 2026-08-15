@@ -10,12 +10,9 @@ set -euo pipefail
 
 # Pick an engine.
 ENGINE=""
-if command -v python3 >/dev/null 2>&1; then
-  ENGINE=python3
-elif command -v bc >/dev/null 2>&1; then
-  ENGINE=bc
-elif command -v awk >/dev/null 2>&1; then
-  ENGINE=awk
+if command -v python3 >/dev/null 2>&1; then ENGINE="python3"
+elif command -v bc >/dev/null 2>&1; then ENGINE="bc"
+elif command -v awk >/dev/null 2>&1; then ENGINE="awk"
 fi
 
 if [[ -z "$ENGINE" ]]; then

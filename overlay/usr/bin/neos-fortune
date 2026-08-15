@@ -43,7 +43,8 @@ random_pick() {
 }
 
 if [[ -f "$CUSTOM" && -s "$CUSTOM" ]]; then
-  ALL=("${QUOTES[@]}" $(cat "$CUSTOM"))
+  mapfile -t CUSTOM_QUOTES < "$CUSTOM"
+  ALL=("${QUOTES[@]}" "${CUSTOM_QUOTES[@]}")
 else
   ALL=("${QUOTES[@]}")
 fi

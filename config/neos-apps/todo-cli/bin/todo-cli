@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# todo-cli — focused todo list with tags and priorities (NeoApps).
+#   todo-cli                  list open / pending items
+#   todo-cli add "task"                         add (prio=normal, no tag/due)
+#   todo-cli add "ship release" --prio high --due 2026-01-15 --tag release
+#   todo-cli done <n>                           mark item complete
+#   todo-cli rm <n>                             delete item
+#   todo-cli list                               list all (open first, then done)
+#   todo-cli clear                              wipe all items
+# Items stored in ~/.neos-apps-todo/todo.tsv as:
+#   prio<TAB>tag<TAB>due<TAB>status<TAB>text
+set -euo pipefail
+
+DATA_DIR="${NEOS_TODO_DIR:-$HOME/.neos-apps-todo}"
+FILE="$DATA_DIR/todo.tsv"
+mkdir -p "$DATA_DIR"
+touch "$FILE"
+
+open_count() { awk -F'\t' 'NF>=5 && $4!="done"' "$FILE" | grep -c . || true; }
+
+list_open() {
+  if [[ "$(open_count)" -eq 0 ]]; then
+    echo "No open todos. Add one with: todo-cli add \"task\""
+    return 0
+  fi
+  echo "Open:"
+  awk -F'\t' 'NF>=5 && $4!="done" {n++; printf "%d) prio=%-6s tag=%-8s due=%-10s %s\n", n, $1, $2, $3, $5}' "$FILE"
+}
+
+list_all() {
+  [[ -s "$FILE" ]] || { echo "(no todos)"; return 0; }
+  awk -F'\t' 'NF>=5 {printf "[%s] %-2d prio=%-6s tag=%-8s due=%-10s %s\n", $4, NR, $1, $2, $3, $5}' "$FILE"
+}
+
+mark_done() {
+  local n="$1"
+  [[ "$n" =~ ^[0-9]+$ ]] || { echo "todo-cli: item number required (see: todo-cli list)"; exit 2; }
+  awk -F'\t' -v OFS='\t' -v n="$n" \
+    'NR==n { $4="done" } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+  echo "marked item $n complete."
+}
+
+remove() {
+  local n="$1"
+  [[ "$n" =~ ^[0-9]+$ ]] || { echo "usage: todo-cli rm <n>"; exit 2; }
+  awk -v n="$n" 'NR!=n' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+  echo "removed item $n."
+}
+
+cmd() {
+  local sub="${1:-list}"; shift || true
+  case "$sub" in
+    add)
+      local text="" prio=normal tag="" due=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --prio|--priority) prio="$2"; shift 2;;
+          --tag) tag="$2"; shift 2;;
+          --due) due="$2"; shift 2;;
+          *) text="${text:+$text }$1"; shift;;
+        esac
+      done
+      [[ -n "$text" ]] || { echo "usage: todo-cli add \"text\" [--prio high|normal|low] [--tag x] [--due YYYY-MM-DD]"; exit 2; }
+      printf '%s\t%s\t%s\tpending\t%s\n' "$prio" "$tag" "${due:-none}" "$text" >> "$FILE"
+      echo "added (prio=$prio tag=$tag due=${due:-none})."
+      ;;
+    done)
+      [[ $# -ge 1 ]] || { echo "usage: todo-cli done <n>"; exit 2; }
+      mark_done "$1"
+      ;;
+    undo)
+      [[ $# -ge 1 ]] || { echo "usage: todo-cli undo <n>"; exit 2; }
+      awk -F'\t' -v OFS='\t' -v n="$1" 'NR==n { $4="pending" } { print }' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+      echo "un-done item $1."
+      ;;
+    rm|remove)   [[ $# -ge 1 ]] || { echo "usage: todo-cli rm <n>"; exit 2; }; remove "$1";;
+    list|ls|"")  list_open;;
+    all)         list_all;;
+    count)       echo "$(open_count) open";;
+    clear)       : > "$FILE"; echo "cleared all todos.";;
+    -h|--help|help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//';;
+    *) echo "todo-cli: unknown option '$sub' (try: todo-cli --help)"; exit 1;;
+  esac
+}
+
+cmd "$@"

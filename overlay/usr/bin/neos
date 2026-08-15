@@ -31,25 +31,37 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # --- subcommand: doctor ----------------------------------------------------
 
 _pulse_memory() {
-  if [[ ! -r /proc/meminfo ]]; then echo "  memory: unable to read /proc/meminfo"; return; fi
-  local mem_total mem_avail used pct
-  read -r _ mem_total _ < <(awk '/^MemTotal:/ {print; exit}' /proc/meminfo)
-  read -r _ mem_avail _ < <(awk '/^MemAvailable:/ {print; exit}' /proc/meminfo)
-  (( mem_total > 0 )) || return 0
-  used=$((mem_total - mem_avail))
-  pct=$((used * 100 / mem_total))
-  if (( pct > 85 )); then
-    echo "  memory: RAM usage is under pressure ($pct% used)."
-  else
-    echo "  memory: RAM usage is normal ($pct% used)."
-  fi
-}
+   if [[ ! -r /proc/meminfo ]]; then echo "  memory: unable to read /proc/meminfo"; return; fi
+   local mem_line mem_total mem_avail used pct
+   # PRoot environments may not support /dev/fd/N for process substitution,
+   # so read each awk result into a variable via command substitution.
+   mem_line="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+   mem_total="${mem_line:-0}"
+   mem_line="$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+   mem_avail="${mem_line:-0}"
+   if ! [[ "$mem_total" =~ ^[0-9]+$ ]]; then mem_total=0; fi
+   if ! [[ "$mem_avail" =~ ^[0-9]+$ ]]; then mem_avail=0; fi
+   (( mem_total > 0 )) || { echo "  memory: unable to determine memory usage."; return; }
+   used=$((mem_total - mem_avail))
+   pct=$((used * 100 / mem_total))
+   if (( pct > 85 )); then
+     echo "  memory: RAM usage is under pressure ($pct% used)."
+   else
+     echo "  memory: RAM usage is normal ($pct% used)."
+   fi
+ }
 
 _pulse_disk() {
-  local total used pct
-  # Use df on the root mount point — works for /dev, overlay, tmpfs, etc.
-  read -r total used _ < <(df -P / 2>/dev/null | awk 'NR==2{print $2,$3}')
-  (( total > 0 )) || { echo "  disk: unable to determine root usage."; return; }
+   local total used pct
+   # PRoot-safe: avoid process substitution by using command substitution.
+   local df_line
+   df_line="$(df -P / 2>/dev/null | awk 'NR==2{print $2,$3}')"
+   read -r total used <<< "$df_line"
+   total="${total:-0}"
+   used="${used:-0}"
+   if ! [[ "$total" =~ ^[0-9]+$ ]]; then total=0; fi
+   if ! [[ "$used" =~ ^[0-9]+$ ]]; then used=0; fi
+   (( total > 0 )) || { echo "  disk: unable to determine root usage."; return; }
   pct=$((used * 100 / total))
   if (( pct > 90 )); then
     echo "  disk: root filesystem is almost full ($pct% used — free some space)."

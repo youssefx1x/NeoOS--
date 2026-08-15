@@ -120,7 +120,7 @@ cmd_install() {
     url)
       local tmp
       tmp="$(mktemp -d)"
-      log "Downloading $url"
+      log "Downloading $src"
       if command -v curl >/dev/null 2>&1; then
         curl -fSL -o "$tmp/pkg" "$src" || { err "download failed"; rm -rf "$tmp"; return 1; }
       else

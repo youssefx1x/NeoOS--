@@ -130,11 +130,20 @@ main() {
   if [[ "$mode" == "check" ]]; then show_check; return 0; fi
 
   if [[ -z "$prompt" ]]; then
-    if [[ -t 0 && ! -p /dev/stdin ]]; then
+    if [[ -t 0 ]]; then
       warn "no prompt given (and no piped stdin). Try: neos-ai \"explain X\"  or  neos-ai --check"
       return 1
     fi
     prompt="$(cat)"
+  elif [[ ! -t 0 ]]; then
+    # A prompt argument was supplied AND stdin is piped: append the piped
+    # content (e.g. a system report handed off by `neos doctor --ai` /
+    # `neos-doctor --ai`) to the user query so the AI actually sees it.
+    local extra
+    extra="$(cat 2>/dev/null || true)"
+    [[ -n "$extra" ]] && prompt="${prompt}
+
+${extra}"
   fi
   [[ -n "$prompt" ]] || { warn "empty prompt."; return 1; }
 

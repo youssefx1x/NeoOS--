@@ -1,0 +1,6 @@
+NAME="calc-cli"
+VERSION="1.0.0"
+DESCRIPTION="A terminal calculator with math functions (wraps python3/bc/awk)"
+AUTHOR="NeoOS Project"
+ENTRY="calc-cli"
+DEPENDS=""

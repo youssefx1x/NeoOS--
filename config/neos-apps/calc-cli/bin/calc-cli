@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# calc-cli — terminal calculator (NeoApps).
+#   calc-cli "2 + 2 * 5"          evaluate an expression
+#   calc-cli 2 + 2 * 5           args joined into one expression
+#   calc-cli                     interactive mode (Ctrl-D / exit to quit)
+# Uses python3 (best) -> bc -> awk, whichever is installed.
+set -euo pipefail
+
+ENGINE=""
+if command -v python3 >/dev/null 2>&1; then ENGINE=python3
+elif command -v bc >/dev/null 2>&1; then ENGINE=bc
+elif command -v awk >/dev/null 2>&1; then ENGINE=awk
+fi
+
+if [[ -z "$ENGINE" ]]; then
+  echo "calc-cli: no engine found (need python3, bc, or awk)" >&2
+  exit 1
+fi
+
+calc() {
+  local expr="$1"
+  case "$ENGINE" in
+    python3)
+      python3 -c "
+import math
+expr = '''$expr'''.replace('^', '**').replace('π', str(math.pi)).replace('PI', str(math.pi))
+try:
+    print(eval(expr, {'__builtins__': {}}, {'sqrt':math.sqrt,'sin':math.sin,'cos':math.cos,'tan':math.tan,'atan2':math.atan2,'exp':math.exp,'log':math.log,'log10':math.log10,'floor':math.floor,'ceil':math.ceil,'abs':abs,'round':round,'pi':math.pi}))
+except Exception as e:
+    print('error:', e)
+" 2>&1
+      ;;
+    bc)
+      expr="${expr//^/**}"
+      echo "scale=4; $expr" | bc 2>&1
+      ;;
+    awk)
+      expr="${expr//^/**}"
+      awk "BEGIN{print $expr}" 2>&1
+      ;;
+  esac
+}
+
+if [[ $# -ge 1 ]]; then
+  case "$1" in
+    -h|--help|help) echo "usage: calc-cli <expr> ..."; exit 0 ;;
+  esac
+  calc "$*"
+else
+  echo "calc-cli (${ENGINE} engine) — type an expression, Ctrl-D / exit to quit."
+  while read -r -p "> " line; do
+    [[ -z "$line" ]] && continue
+    [[ "$line" == "exit" || "$line" == "quit" ]] && break
+    calc "$line"
+  done
+fi

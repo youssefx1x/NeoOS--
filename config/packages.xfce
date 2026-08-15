@@ -17,3 +17,20 @@ lightdm-gtk-greeter
 xfce4-whiskermenu-plugin
 xfce4-verve-plugin
 network-manager-gnome
+# lightweight desktop utilities
+ranger
+vim
+neovim
+tmux
+micro
+geany
+geany-common
+xarchiver
+filezilla
+transmission-gtk
+mpv
+alsa-utils
+pulseaudio-utils
+network-manager-openvpn-gnome
+gnome-keyring
+

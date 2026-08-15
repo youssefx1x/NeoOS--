@@ -13,6 +13,7 @@ NEOS_MIRROR="${NEOS_MIRROR:-http://deb.debian.org/debian/}"
 NEOS_SECURITY="${NEOS_SECURITY:-http://security.debian.org/debian-security}"
 NEOS_KEYRING="${NEOS_KEYRING:-/usr/share/keyrings/debian-archive-keyring.gpg}"
 NEOS_TARBALL="${NEOS_TARBALL:-$REPO_ROOT/build/neoos-rootfs.tar.xz}"
+NEOKIT_BASE_TARBALL="${NEOKIT_BASE_TARBALL:-$REPO_ROOT/build/neokit-base/neokit-1.0-base.tar.gz}"
 NEOS_COMPONENTS="${NEOS_COMPONENTS:-main,contrib,non-free-firmware}"
 # Build variant: "full" (default) = core + XFCE GUI; "minimal" = core shell only
 # (fast local builds, no GUI). Lets end users install NeoOS from a localhost
@@ -81,9 +82,17 @@ if [[ ! -f "$NEOS_KEYRING" ]]; then
 fi
 
 if [[ "$SKIP_INSTALL" -eq 0 ]]; then
-  log "Bootstrapping NeoOS rootfs ($NEOS_ARCH / $NEOS_SUITE) -> $NEOS_ROOTFS"
-  rm -rf "$NEOS_ROOTFS"
-  mkdir -p "$NEOS_ROOTFS"
+  if [[ -f "$NEOKIT_BASE_TARBALL" ]]; then
+    log "Using Neokit 1.0 base layer: $NEOKIT_BASE_TARBALL"
+    rm -rf "$NEOS_ROOTFS"
+    mkdir -p "$NEOS_ROOTFS"
+    tar -C "$NEOS_ROOTFS" -xzf "$NEOKIT_BASE_TARBALL" --strip-components=1
+    log "Neokit base layer extracted to $NEOS_ROOTFS"
+  else
+    log "Building rootfs"
+    log "Bootstrapping NeoOS rootfs ($NEOS_ARCH / $NEOS_SUITE) -> $NEOS_ROOTFS"
+    rm -rf "$NEOS_ROOTFS"
+    mkdir -p "$NEOS_ROOTFS"
 
   keyring_args=()
   if [[ -n "$NEOS_KEYRING" ]]; then
@@ -137,6 +146,19 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     else
       proot -r "$NEOS_ROOTFS" /debootstrap/debootstrap --second-stage
     fi
+    fi  # end mmdebstrap vs debootstrap
+  fi  # end neokit base vs fresh bootstrap
+fi  # end SKIP_INSTALL
+
+# --- Ensure rootfs exists (extract from Neokit base if --skip-install) ---
+if [[ ! -d "$NEOS_ROOTFS" || -z "$(ls -A "$NEOS_ROOTFS" 2>/dev/null)" ]]; then
+  if [[ -f "$NEOKIT_BASE_TARBALL" ]]; then
+    log "Extracting Neokit base layer into rootfs (Neokit base was not pre-installed)"
+    mkdir -p "$NEOS_ROOTFS"
+    tar -C "$NEOS_ROOTFS" -xzf "$NEOKIT_BASE_TARBALL" --strip-components=1
+  else
+    log "ERROR: rootfs not found at $NEOS_ROOTFS and no Neokit base tarball available"
+    exit 1
   fi
 fi
 

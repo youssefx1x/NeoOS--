@@ -63,13 +63,11 @@ EOF
   heading "Dev"
   one neos-new   "Scaffold new projects (bash, python, c, web, shlib)"
   one neos-lang  "Install / list language toolchains"
-  one neos-launch "Enter or create a Project Capsule workspace (neos launch)"
-
+  one "neos launch" "Enter or create a Project Capsule workspace"
   heading "Recovery & maintenance"
-   one neos-doctor "NeoDoctor: automatic diagnostics & self-repair"
-   one neos-doctor-ai "Doctor with AI diagnosis: neos-doctor --ai (uses neos-ai)"
-  one neos-clean "Free disk by cleaning caches/logs/temp (neos clean)"
-  one neos-fix   "Automatic repair: dpkg/apt --fix-broken + autoremove (neos fix)"
+  one neos-doctor "NeoDoctor: automatic diagnostics & self-repair (neos-doctor --fix / --ai)"
+  one neos-clean "Free disk by cleaning caches/logs/temp"
+  one "neos fix" "Automatic repair: dpkg/apt --fix-broken + autoremove"
   one neos-ai    "On-device AI assistant (Qwen 2.5 0.5B local or HTTP backend)"
 
   heading "Users"

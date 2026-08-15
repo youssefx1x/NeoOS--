@@ -1,0 +1,10 @@
+NAME="Neokit"
+VERSION="1.0 (Trixie Base)"
+ID=neokit
+ID_LIKE=debian
+PRETTY_NAME="Neokit 1.0 (Debian 13 Trixie Base)"
+VERSION_ID=1.0
+HOME_URL="https://neokit.local/"
+SUPPORT_URL="https://neokit.local/"
+BUG_REPORT_URL="https://neokit.local/bugs"
+PRIVACY_POLICY_URL="https://neokit.local/privacy"
