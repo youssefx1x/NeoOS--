@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install NeoOS
+Comment=Launch the NeoOS graphical installer
+Exec=neos-installer
+Icon=drive-harddisk
+Terminal=false
+Categories=System;
+StartupNotify=true

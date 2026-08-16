@@ -8,6 +8,7 @@ set -euo pipefail
 log() { printf '\033[1;36m[neos-iso-chroot]\033[0m %s\n' "$*"; }
 
 export DEBIAN_FRONTEND=noninteractive
+
 log "Installing kernel + live-boot + grub files"
 apt-get update
 apt-get install -y \
@@ -23,28 +24,21 @@ apt-get install -y \
   iproute2
 
 # Optionally include the Calamares graphical installer on the live media.
-# Set NEOS_INCLUDE_INSTALLER=1 to ship it (pulls a Qt6 GUI stack).
 if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]]; then
   log "Installing Calamares installer (NEOS_INCLUDE_INSTALLER=1)"
-  # The package list is shipped into the rootfs by apply-overlay.sh.
-  # Fall back to a hardcoded set if it is not present.
-   if [[ -r /usr/lib/neos/packages.calamares ]]; then
-     grep -v '^[[:space:]]*#' /usr/lib/neos/packages.calamares | xargs -r apt-get install -y
-   else
-     apt-get install -y calamares calamares-settings-debian rsync cryptsetup os-prober \
-       qml-module-qtquick-window2 qml-module-qtquick2 qml-module-qtquick-controls2 \
-       qml-module-qtgraphicaleffects polkitd pkexec weston xwayland
-   fi
-  # Ensure a desktop entry to launch the installer appears in the menu
-  if command -v calamares >/dev/null 2>&1; then
-    log "Calamares installer available: neos-installer"
+  if [[ -r /usr/lib/neos/packages.calamares ]]; then
+    grep -v '^[[:space:]]*#' /usr/lib/neos/packages.calamares | xargs -r apt-get install -y
+  else
+    apt-get install -y calamares calamares-settings-debian rsync cryptsetup os-prober \
+      qml-module-qtquick-window2 qml-module-qtquick2 qml-module-qtquick-controls2 \
+      qml-module-qtgraphicaleffects polkitd pkexec weston xwayland
   fi
 fi
 
 # Regenerate initramfs with live-boot hook
 update-initramfs -k all -u || true
 
-# Create casper-compatible live config dir
+# Create live boot config
 mkdir -p /etc/live
 cat > /etc/live/boot.conf <<'EOF'
 # NeoOS live boot: no persistent overlay, auto-configure network via DHCP
@@ -53,13 +47,43 @@ toram
 quickreboot
 EOF
 
-# Ensure default user can run sudo
+# Create the 'neo' user for auto-login
 if command -v useradd >/dev/null 2>&1 && ! id neo >/dev/null 2>&1; then
-  useradd -m -s /bin/bash neo || true
+  log "Creating 'neo' user for auto-login"
+  useradd -m -s /bin/bash neo
   echo "neo ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/neo
+  chmod 0440 /etc/sudoers.d/neo
 fi
 
-# Default to a login shell that lands in the menu for the neo user
-echo "if [ -x /usr/bin/neos-menu ] && [ \"\$(id -u)\" != 0 ]; then /usr/bin/neos-menu; fi" >> /home/neo/.profile
+# Configure LightDM for auto-login as neo user
+mkdir -p /etc/lightdm
+cat > /etc/lightdm/lightdm.conf <<'EOF'
+[Seat:*]
+autologin-user=neo
+autologin-user-timeout=0
+greeter-session=lightdm-gtk-greeter
+user-session=xfce
+EOF
+
+# Ensure desktop shortcut exists
+mkdir -p /home/neo/Desktop
+cat > /home/neo/Desktop/neos-installer.desktop <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install NeoOS
+Comment=Launch the NeoOS graphical installer
+Exec=neos-installer
+Icon=drive-harddisk
+Terminal=false
+Categories=System;
+StartupNotify=true
+EOF
+chmod +x /home/neo/Desktop/neos-installer.desktop
+chown -R neo:neo /home/neo/Desktop /home/neo/.config/autostart 2>/dev/null || true
+
+# Set default session to XFCE
+mkdir -p /etc/X11
+echo "xfce" > /etc/X11/default-display-manager
 
 log "ISO setup complete."
