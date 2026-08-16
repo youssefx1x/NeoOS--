@@ -19,13 +19,33 @@ echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections 2
 
 log "Installing kernel + live-boot + grub files"
 apt-get update
+
+# Install architecture-appropriate kernel and grub packages
+case "$(uname -m)" in
+  x86_64|amd64)
+    KERNEL_PKG="linux-image-amd64"
+    GRUB_PCBIN="grub-pc-bin"
+    GRUB_EFIBIN="grub-efi-amd64-bin"
+    ;;
+  aarch64|arm64)
+    KERNEL_PKG="linux-image-arm64"
+    GRUB_PCBIN=""
+    GRUB_EFIBIN="grub-efi-arm64-bin"
+    ;;
+  *)
+    KERNEL_PKG="linux-image-amd64"
+    GRUB_PCBIN="grub-pc-bin"
+    GRUB_EFIBIN="grub-efi-amd64-bin"
+    ;;
+esac
+
 apt-get install -y \
-  linux-image-amd64 \
+  "$KERNEL_PKG" \
   initramfs-tools \
   live-boot \
   live-boot-initramfs-tools \
-  grub-pc-bin \
-  grub-efi-amd64-bin \
+  $GRUB_PCBIN \
+  "$GRUB_EFIBIN" \
   grub-common \
   systemd-sysv \
   isc-dhcp-client \
