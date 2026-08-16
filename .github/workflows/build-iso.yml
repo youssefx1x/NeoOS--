@@ -57,7 +57,7 @@ jobs:
       
       - name: Verify ISO
         run: |
-          file build/neos.iso
+          file build/neoos.iso
           ls -lh build/neoos.iso
       
       - name: Upload artifact
@@ -91,12 +91,12 @@ jobs:
       
       - name: Build rootfs (arm64)
         run: |
-          sudo bash ./build.sh rootfs
+          sudo env NEOS_ARCH=arm64 bash ./scripts/build-rootfs.sh
           ls -lh build/rootfs/usr/bin/bash
       
       - name: Build ISO (arm64)
         run: |
-          sudo env NEOS_INCLUDE_INSTALLER=0 bash ./scripts/build-iso.sh
+          sudo env NEOS_ARCH=arm64 NEOS_INCLUDE_INSTALLER=0 bash ./scripts/build-iso.sh
           ls -lh build/neoos.iso
       
       - name: Upload artifact
@@ -109,7 +109,7 @@ jobs:
     name: Create GitHub Release
     needs: [build-amd64-iso, build-arm64-iso]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download ISO artifacts
         uses: actions/download-artifact@v4
