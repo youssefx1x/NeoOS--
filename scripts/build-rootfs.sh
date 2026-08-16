@@ -21,6 +21,8 @@ NEOS_COMPONENTS="${NEOS_COMPONENTS:-main,contrib,non-free-firmware}"
 NEOS_VARIANT="${NEOS_VARIANT:-full}"
 NEOS_INCLUDE_PKGS=("$REPO_ROOT/config/packages.base")
 [[ "$NEOS_VARIANT" == "minimal" ]] || NEOS_INCLUDE_PKGS+=("$REPO_ROOT/config/packages.xfce")
+[[ "$NEOS_VARIANT" != "minimal" ]] && NEOS_INCLUDE_PKGS+=("$REPO_ROOT/config/packages.iso")
+[[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]] && NEOS_INCLUDE_PKGS+=("$REPO_ROOT/config/packages.calamares")
 
 # Map NeoOS arch aliases to Debian/Ubuntu arch names used by
 # mmdebstrap/debootstrap. (e.g. aarch64 -> arm64, x86_64 -> amd64.)
