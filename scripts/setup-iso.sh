@@ -8,6 +8,11 @@ set -euo pipefail
 log() { printf '\033[1;36m[neos-iso-chroot]\033[0m %s\n' "$*"; }
 
 export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
+export DEBIAN_PRIORITY=critical
+
+# Pre-seed debconf to avoid interactive prompts
+echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections 2>/dev/null || true
 
 log "Installing kernel + live-boot + grub files"
 apt-get update
@@ -26,10 +31,16 @@ apt-get install -y \
 # Optionally include the Calamares graphical installer on the live media.
 if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]]; then
   log "Installing Calamares installer (NEOS_INCLUDE_INSTALLER=1)"
+
+  # Pre-seed the settings.conf prompt that calamares-settings-debian asks
+  echo 'calamares-settings-debian calamares/settings-module multiselect "welcome, locale, keyboard, partition, users, summary"' | debconf-set-selections 2>/dev/null || true
+  echo 'calamares settings.conf seen true' | debconf-set-selections 2>/dev/null || true
+
   if [[ -r /usr/lib/neos/packages.calamares ]]; then
-    grep -v '^[[:space:]]*#' /usr/lib/neos/packages.calamares | xargs -r apt-get install -y
+    grep -v '^[[:space:]]*#' /usr/lib/neos/packages.calamares | xargs -r apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install -y
   else
-    apt-get install -y calamares calamares-settings-debian rsync cryptsetup os-prober \
+    apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install -y \
+      calamares calamares-settings-debian rsync cryptsetup os-prober \
       qml-module-qtquick-window2 qml-module-qtquick2 qml-module-qtquick-controls2 \
       qml-module-qtgraphicaleffects polkitd pkexec weston xwayland
   fi
