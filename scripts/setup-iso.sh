@@ -4,6 +4,9 @@ set -euo pipefail
 # setup-iso.sh — run INSIDE the NeoOS rootfs (via chroot) to install the
 # kernel, initramfs tooling, grub files and live-boot support needed to
 # produce a bootable ISO with scripts/build-iso.sh.
+#
+# XFCE + lightdm + Calamares are installed via packages.xfce/packages.calamares
+# during the rootfs bootstrap phase, so this script only handles kernel/live-boot.
 
 log() { printf '\033[1;36m[neos-iso-chroot]\033[0m %s\n' "$*"; }
 
@@ -31,8 +34,6 @@ apt-get install -y \
 # Optionally include the Calamares graphical installer on the live media.
 if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]]; then
   log "Installing Calamares installer (NEOS_INCLUDE_INSTALLER=1)"
-
-  # Pre-seed the settings.conf prompt that calamares-settings-debian asks
   echo 'calamares-settings-debian calamares/settings-module multiselect "welcome, locale, keyboard, partition, users, summary"' | debconf-set-selections 2>/dev/null || true
   echo 'calamares settings.conf seen true' | debconf-set-selections 2>/dev/null || true
 
@@ -42,7 +43,7 @@ if [[ "${NEOS_INCLUDE_INSTALLER:-0}" == "1" ]]; then
     apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install -y \
       calamares calamares-settings-debian rsync cryptsetup os-prober \
       qml-module-qtquick-window2 qml-module-qtquick2 qml-module-qtquick-controls2 \
-      qml-module-qtgraphicaleffects polkitd pkexec weston xwayland
+      qml-module-qtgraphicaleffects polkitd pkexec
   fi
 fi
 

@@ -57,7 +57,7 @@ jobs:
       
       - name: Verify ISO
         run: |
-          file build/neeos.iso
+          file build/neos.iso
           ls -lh build/neoos.iso
       
       - name: Upload artifact
