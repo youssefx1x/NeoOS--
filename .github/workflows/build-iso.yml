@@ -50,9 +50,17 @@ jobs:
           sudo env NEOS_ARCH=amd64 NEOS_VARIANT=full bash ./build.sh rootfs
           ls -lh build/rootfs/usr/bin/bash
       
+      - name: Install kernel for ISO
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y linux-image-amd64 initramfs-tools
+      
       - name: Build ISO (amd64)
         run: |
-          sudo env NEOS_ARCH=amd64 bash ./scripts/build-iso.sh
+          sudo env NEOS_ARCH=amd64 \
+            NEOS_KERNEL_SRC="$(ls /boot/vmlinuz-* | head -1)" \
+            NEOS_INITRD_SRC="$(ls /boot/initrd.img-* | head -1)" \
+            bash ./scripts/build-iso.sh
           ls -lh build/neoos.iso
       
       - name: Verify ISO
