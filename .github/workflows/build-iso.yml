@@ -42,12 +42,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             mmdebstrap debootstrap xz-utils \
-            squashfs-tools grub-efi-amd64 grub2-common \
-            xorriso
+            squashfs-tools grub-efi-amd64 grub2-common grub-common \
+            xorriso mtools dosfstools
       
       - name: Build rootfs (amd64)
         run: |
-          sudo env NEOS_ARCH=amd64 NEOS_VARIANT=full bash ./build.sh rootfs
+          sudo env NEOS_ARCH=amd64 NEOS_VARIANT=full NEOS_TARBALL=none bash ./build.sh rootfs
           ls -lh build/rootfs/usr/bin/bash
       
       - name: Build ISO (amd64)
@@ -85,8 +85,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             mmdebstrap debootstrap xz-utils \
-            squashfs-tools grub-efi-arm64 grub2-common \
-            xorriso \
+            squashfs-tools grub-efi-arm64 grub2-common grub-common \
+            xorriso mtools dosfstools \
             qemu-user-static
       
       - name: Build rootfs (arm64)
