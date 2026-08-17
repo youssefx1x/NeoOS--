@@ -1,0 +1,10 @@
+linux-image-arm64
+initramfs-tools
+live-boot
+live-boot-initramfs-tools
+grub-efi-arm64-bin
+grub-common
+grub-efi-arm64
+systemd-sysv
+isc-dhcp-client
+iproute2
