@@ -47,7 +47,7 @@ jobs:
       
       - name: Build rootfs (amd64)
         run: |
-          sudo env NEOS_ARCH=amd64 NEOS_VARIANT=full NEOS_TARBALL=none bash ./build.sh rootfs
+          sudo env NEOS_ARCH=amd64 NEOS_VARIANT=full bash ./build.sh rootfs
           ls -lh build/rootfs/usr/bin/bash
       
       - name: Build ISO (amd64)
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: neoos-amd64-iso
-          path: build/neos.iso
+          path: build/neoos.iso
 
   build-arm64-iso:
     name: Build NeoOS ISO (arm64)
