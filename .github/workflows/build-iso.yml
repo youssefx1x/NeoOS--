@@ -120,6 +120,11 @@ jobs:
         with:
           path: ./artifacts
       
+      - name: Rename ISOs for release
+        run: |
+          mv artifacts/neoos-amd64-iso/neoos.iso artifacts/neoos-amd64-iso/neoos-amd64.iso
+          mv artifacts/neoos-arm64-iso/neoos.iso artifacts/neoos-arm64-iso/neoos-arm64.iso
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -127,7 +132,7 @@ jobs:
           name: NeoOS ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            artifacts/neoos-amd64-iso/neoos.iso
-            artifacts/neoos-arm64-iso/neoos.iso
+            artifacts/neoos-amd64-iso/neoos-amd64.iso
+            artifacts/neoos-arm64-iso/neoos-arm64.iso
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
